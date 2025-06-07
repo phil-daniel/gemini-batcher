@@ -7,6 +7,8 @@ from google.genai import types
 
 from dotenv import load_dotenv
 
+from geminiapi import GeminiApi
+
 load_dotenv()
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
@@ -104,14 +106,10 @@ def fixed_question_batching(questions_per_batch = 10):
 if __name__ == "__main__":
     chunks = fixed_length_chunking(4000)
 
-    client = genai.Client(api_key=GEMINI_API_KEY)
+    client = GeminiApi(api_key=GEMINI_API_KEY, model="gemini-2.0-flash")
+
+    # client = genai.Client(api_key=GEMINI_API_KEY)
 
     for chunk in chunks:
-        response = client.models.generate_content(
-            model="gemini-2.0-flash",
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-            ),
-            contents=[SYSTEM_PROMPT, chunk, QUESTIONS]
-        )
-        print(response.text)
+        response = client.make_query([SYSTEM_PROMPT, chunk, QUESTIONS])
+        print(response)
