@@ -1,0 +1,2 @@
+Explain what Python is used for.
+When was Python created?
