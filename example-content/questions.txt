@@ -1,2 +1,32 @@
-Explain what Python is used for.
-When was Python created?
+What is the goal of MIT 6.00 (Introduction to Computer Science and Programming)?
+Who teaches the course?
+What kind of students is this course intended for?
+What are the strategic and tactical goals of the course?
+How is the course structured (lectures, recitations, workload)?
+What programming language is used in the course?
+Are there any textbooks required for the course?
+How are grades calculated in the course?
+How are quizzes and exams administered (e.g., open book)?
+What are the expectations regarding lecture and recitation attendance?
+Why are class notes not handed out?
+How do students register for recitations?
+What does it mean to think like a computer scientist?
+What is computational thinking?
+What is computation?
+What is the difference between declarative and imperative knowledge?
+How do we capture imperative knowledge in a computer?
+What is a fixed-program computer?
+What is a stored-program computer?
+What are the components of a stored-program computer?
+What is a recipe in the context of computation?
+What is the significance of Alan Turing’s work to computation?
+What does it mean for programming languages to be Turing complete?
+Why is Python used in this course?
+What are the characteristics of Python as a language (e.g., high-level, interpreted)?
+What is syntax vs. semantics in programming?
+What are static semantics?
+What is the difference between expressions and commands/statements in Python?
+What are the primitive data types in Python?
+What are examples of operations on numbers and strings in Python?
+What are some common errors in Python (e.g., syntax errors, static semantic errors)?
+How does Python handle variables and assignment?
