@@ -9,9 +9,7 @@ How are grades calculated in the course?
 How are quizzes and exams administered (e.g., open book)?
 What are the expectations regarding lecture and recitation attendance?
 Why are class notes not handed out?
-How do students register for recitations?
 What does it mean to think like a computer scientist?
-What is computational thinking?
 What is computation?
 What is the difference between declarative and imperative knowledge?
 How do we capture imperative knowledge in a computer?
