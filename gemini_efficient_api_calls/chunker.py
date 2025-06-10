@@ -55,7 +55,9 @@ class Chunker:
         batch_count = math.ceil(len(questions) / questions_per_batch)
 
         for i in range(batch_count):
-            batches.append(questions[i : min(i + questions_per_batch, len(questions))])
+                start = i * questions_per_batch
+                end = min((i+1) * questions_per_batch, len(questions))
+                batches.append(questions[start:end])
         return batches
 
     def semantic_chunk_and_batch(
