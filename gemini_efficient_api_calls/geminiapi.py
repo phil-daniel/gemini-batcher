@@ -1,9 +1,25 @@
 import json
+import time
 
 from google import genai
 from google.genai import types
 
 from .chunker import Chunker
+
+DEFAULT_SYSTEM_PROMPT = """
+    You are an AI assistant tasked with answering questions based on the information provided to you.
+    * **Accuracy and Precision:** Provide direct, factual answers.
+    * **Source Constraint:** Use *only* information explicitly present in the transcript. Do not infer, speculate, or bring in outside knowledge.
+    * **Completeness:** Ensure each answer fully addresses the question, *to the extent possible with the given transcript*.
+    * **Missing Information:** If the information required to answer a question is not discussed or cannot be directly derived from the transcript, respond with '-1'.
+    Respond in valid JSON of the form, only using text:
+    ```
+    {
+        "1" : "Answer to question 1",
+        "2" : "Answer to question 2",
+    }
+    ```
+"""
 
 class GeminiApi:
 
@@ -29,29 +45,53 @@ class GeminiApi:
     def generate_content(
         self,
         prompt : str,
-        system_prompt : str = None
+        system_prompt : str = None,
+        max_retries : int = 3,
     ):
-        # TODO: NEED TO HANDLE API RATE LIMITS, CHECK INPUT OUTPUT TOKENS ARE UNDER THE LIMIT.
+        # TODO: Check input and output tokens are below limits.
+        # TODO: Improve retry if API failure occurs
 
-        response = self.client.models.generate_content(
-            model=self.model,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                system_instruction=system_prompt
-            ),
-            contents=prompt
-        )
+        # Adding default system prompt if one is not given.
+        if system_prompt == None:
+            system_prompt = DEFAULT_SYSTEM_PROMPT
 
-        # TODO: Add retry if API failure occurs
+        for i in range(max_retries):
+            try:
+                response = self.client.models.generate_content(
+                    model=self.model,
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json",
+                        system_instruction=system_prompt
+                    ),
+                    contents=prompt
+                )
 
-        # TODO: Information about token usage, this can be used to compare performance between different designs
-        input_tokens = response.usage_metadata.prompt_token_count
-        output_tokens = response.usage_metadata.candidates_token_count
+                # TODO: Information about token usage, this can be used to compare performance between different designs
+                input_tokens = response.usage_metadata.prompt_token_count
+                output_tokens = response.usage_metadata.candidates_token_count
 
+                return {
+                    "text" : self.parse_json(response.text),
+                    "input tokens" : input_tokens,
+                    "output tokens" : output_tokens,
+                }
+
+            except Exception as e:
+                # Error code 429 corresponds to rate limiting, so we can check if that error code is contained within the exception
+                # TODO improve error handling to check the actual error code
+                # if e.response and e.response.status_code == 429:
+                #    print ("retry after X")
+                # TODO: Change from print to logging
+                # TODO: Change sleep time based on retry time in error 
+                print ("Retrying")
+                time.sleep(10)
+                continue
+        
+        # TODO: Handle failure better
         return {
-            "text" : self.parse_json(response.text),
-            "input tokens" : input_tokens,
-            "output tokens" : output_tokens,
+            'text' : [],
+            'input tokens' : 0,
+            'output tokens' : 0
         }
 
     def generate_content_fixed(
@@ -65,25 +105,9 @@ class GeminiApi:
         system_prompt : str = None
     ):
         # TODO: Currently can only handle a text response i.e. not a code block.
-        # Adding default system prompt if one is not given.
-        if system_prompt == None:
-            system_prompt = """
-                You are an AI assistant tasked with answering questions based on the information provided to you.
-                * **Accuracy and Precision:** Provide direct, factual answers.
-                * **Source Constraint:** Use *only* information explicitly present in the transcript. Do not infer, speculate, or bring in outside knowledge.
-                * **Completeness:** Ensure each answer fully addresses the question, *to the extent possible with the given transcript*.
-                * **Missing Information:** If the information required to answer a question is not discussed or cannot be directly derived from the transcript, respond with '-1'.
-                Respond in valid JSON of the form, only using text:
-                ```
-                {
-                    "1" : "Answer to question 1",
-                    "2" : "Answer to question 2",
-                }
-                ```
-            """
         
+        # Chunking and Batching the questions
         chunker = Chunker()
-
         if enable_sliding_window:
             chunks = chunker.sliding_window_chunking_by_size(content, chunk_char_length, window_char_length)
         else:
@@ -96,8 +120,11 @@ class GeminiApi:
         total_output_tokens = 0
 
         for batch in question_batches:
+            # TODO: Changed where the questions are numbered but this would cause problems if the questions are already numbered
+            # Get the API to output the responses in a json list instead of a dictionary?
+            numbered_batch = [f'{i+1}: {batch[i]}' for i in range(len(batch))]
             for chunk in chunks:
-                response = self.generate_content([chunk, batch], system_prompt)
+                response = self.generate_content([chunk, numbered_batch])
 
                 total_input_tokens += response["input tokens"]
                 total_output_tokens += response["output tokens"]
@@ -110,6 +137,36 @@ class GeminiApi:
                         answers[batch[i]] = response['text'][f'{i+1}']
         
 
+        # TODO: Better way of returning? Tuple?
+        return {
+            "text" : answers,
+            "input tokens" : total_input_tokens,
+            "output tokens" : total_output_tokens
+        }
+
+    def generate_content_semantic(
+        self,
+        content : str,
+        questions : list[str],
+    ):
+        chunker = Chunker()
+        content_chunks, question_batches = chunker.semantic_chunk_and_batch(content, questions)
+
+        total_input_tokens = 0
+        total_output_tokens = 0
+        answers = {}
+        
+        for i in range(len(content_chunks)):
+            # If there are no questions in the current chunk's batch, then we don't need to query it.
+            if len(question_batches[i]) != 0:
+                response = self.generate_content([content_chunks[i], question_batches[i]])
+
+                total_input_tokens += response["input tokens"]
+                total_output_tokens += response["output tokens"]
+                
+                for j in range(len(response["text"])):
+                    answers[question_batches[i][j]] = response["text"][f'{j+1}']
+        
         # TODO: Better way of returning? Tuple?
         return {
             "text" : answers,
