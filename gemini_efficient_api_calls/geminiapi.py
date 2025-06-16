@@ -1,8 +1,9 @@
 import json
 import time
+import logging
 
 from google import genai
-from google.genai import types
+from google.genai import types, errors
 
 from .chunker import Chunker
 
@@ -75,15 +76,18 @@ class GeminiApi:
                     "input tokens" : input_tokens,
                     "output tokens" : output_tokens,
                 }
-
+            except errors.APIError as e:
+                if e.code == 429:
+                    # TODO: Is it possible to identify how long we have to way instead of just doing 10 seconds?
+                    logging.info(f'Rate limit exceeded, waiting 10 seconds before retrying API call')
+                    logging.debug(f'Gemini API Error Code: {e.code}\nGemini API Error Message: {e.message}')
+                    time.sleep(10)
+                    continue
+                else:
+                    logging.info(f'Unknown API Error occured, Error Code: {e.code}\nError Message: {e.message}')
             except Exception as e:
-                # Error code 429 corresponds to rate limiting, so we can check if that error code is contained within the exception
-                # TODO improve error handling to check the actual error code
-                # if e.response and e.response.status_code == 429:
-                #    print ("retry after X")
-                # TODO: Change from print to logging
-                # TODO: Change sleep time based on retry time in error 
-                print ("Retrying")
+                logging.info(f'Unkown expection occured: {e}')
+                logging.info("Retrying API call in 10 seconds.")
                 time.sleep(10)
                 continue
         
