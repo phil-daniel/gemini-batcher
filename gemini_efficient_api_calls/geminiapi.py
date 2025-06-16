@@ -124,7 +124,7 @@ class GeminiApi:
             # Get the API to output the responses in a json list instead of a dictionary?
             numbered_batch = [f'{i+1}: {batch[i]}' for i in range(len(batch))]
             for chunk in chunks:
-                response = self.generate_content([chunk, numbered_batch])
+                response = self.generate_content([chunk, numbered_batch], system_prompt=system_prompt)
 
                 total_input_tokens += response["input tokens"]
                 total_output_tokens += response["output tokens"]
@@ -138,6 +138,67 @@ class GeminiApi:
         
 
         # TODO: Better way of returning? Tuple?
+        return {
+            "text" : answers,
+            "input tokens" : total_input_tokens,
+            "output tokens" : total_output_tokens
+        }
+    
+    def generate_content_token_aware(
+        self,
+        content : str,
+        questions : list[str],
+        system_prompt : str = None
+    ):
+        
+        # Adding default system prompt if one is not given.
+        if system_prompt == None:
+            system_prompt = DEFAULT_SYSTEM_PROMPT
+        
+        # A version of generate_content_fixed() that automatically chunks depending on the token limits of the model being used.
+        
+        model_info = self.client.models.get(model=self.model)
+        input_token_limit = model_info.input_token_limit
+        output_token_limit = model_info.output_token_limit
+
+        total_input_tokens = 0
+        total_output_tokens = 0
+
+        chunker = Chunker()
+
+        answers = {}
+        queue = [(content, questions)]
+
+        while len(queue) > 0:
+            curr_content, curr_questions = queue.pop(0)
+
+            input_tokens_used = self.client.models.count_tokens(
+                model=self.model, contents = [system_prompt, curr_content, curr_questions]
+            )
+
+            # Checking if the content is too large for the input token limit, if so splitting the content in half
+            # TODO: Add ability to use sliding window
+            if input_tokens_used > input_token_limit:
+                chunked_content = chunker.fixed_chunking_by_num(curr_content, 2)
+
+                queue.append((chunked_content[0], curr_questions))
+                queue.append((chunked_content[1], curr_questions))
+
+            else:
+                response = self.generate_content([curr_content, curr_questions], system_prompt=system_prompt)
+
+                # TODO: This doesn't seem to actually occur, need a better way of doing this, checking if the output limit has been reached
+                if response["output tokens"] > output_token_limit:
+                    batched_questions = chunker.fixed_question_batching(curr_questions, len(curr_questions)//2 + 1)
+                    queue.append((curr_content, batched_questions[0]))
+                    queue.append((curr_content, batched_questions[1]))
+                else:
+                    for i in range(len(response['text'])):
+                        if curr_questions[i] not in answers.keys() and response['text'][f'{i+1}'] != '-1':
+                            answers[curr_questions[i]] = response['text'][f'{i+1}']
+                    total_input_tokens += response["input tokens"]
+                    total_output_tokens += response["output tokens"]
+
         return {
             "text" : answers,
             "input tokens" : total_input_tokens,
