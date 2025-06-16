@@ -8,18 +8,12 @@ from google.genai import types, errors
 from .chunker import Chunker
 
 DEFAULT_SYSTEM_PROMPT = """
-    You are an AI assistant tasked with answering questions based on the information provided to you.
-    * **Accuracy and Precision:** Provide direct, factual answers.
+    You are an AI assistant tasked with answering questions based on the information provided to you, with each answer being a **single** string in the JSON response.
+    There should be the **exactly** same number of answers as inputted questions, no more, no less.
+    * **Accuracy and Precision:** Provide direct, factual answers. **Do not** create or merge any of the questions.
     * **Source Constraint:** Use *only* information explicitly present in the transcript. Do not infer, speculate, or bring in outside knowledge.
     * **Completeness:** Ensure each answer fully addresses the question, *to the extent possible with the given transcript*.
-    * **Missing Information:** If the information required to answer a question is not discussed or cannot be directly derived from the transcript, respond with '-1'.
-    Respond in valid JSON of the form, only using text:
-    ```
-    {
-        "1" : "Answer to question 1",
-        "2" : "Answer to question 2",
-    }
-    ```
+    * **Missing Information:** If the information required to answer a question is not discussed or cannot be directly derived from the transcript, respond with "N/A".
 """
 
 class GeminiApi:
@@ -47,7 +41,7 @@ class GeminiApi:
         self,
         prompt : str,
         system_prompt : str = None,
-        max_retries : int = 3,
+        max_retries : int = 5,
     ):
         # TODO: Check input and output tokens are below limits.
         # TODO: Improve retry if API failure occurs
@@ -62,6 +56,7 @@ class GeminiApi:
                     model=self.model,
                     config=types.GenerateContentConfig(
                         response_mime_type="application/json",
+                        response_schema=list[str],
                         system_instruction=system_prompt
                     ),
                     contents=prompt
@@ -79,16 +74,16 @@ class GeminiApi:
             except errors.APIError as e:
                 if e.code == 429:
                     # TODO: Is it possible to identify how long we have to way instead of just doing 10 seconds?
-                    logging.info(f'Rate limit exceeded, waiting 10 seconds before retrying API call')
+                    logging.info(f'Rate limit exceeded, waiting 20 seconds before retrying API call')
                     logging.debug(f'Gemini API Error Code: {e.code}\nGemini API Error Message: {e.message}')
-                    time.sleep(10)
+                    time.sleep(20)
                     continue
                 else:
                     logging.info(f'Unknown API Error occured, Error Code: {e.code}\nError Message: {e.message}')
             except Exception as e:
                 logging.info(f'Unkown expection occured: {e}')
-                logging.info("Retrying API call in 10 seconds.")
-                time.sleep(10)
+                logging.info("Retrying API call in 20 seconds.")
+                time.sleep(20)
                 continue
         
         # TODO: Handle failure better
@@ -124,23 +119,19 @@ class GeminiApi:
         total_output_tokens = 0
 
         for batch in question_batches:
-            # TODO: Changed where the questions are numbered but this would cause problems if the questions are already numbered
-            # Get the API to output the responses in a json list instead of a dictionary?
-            numbered_batch = [f'{i+1}: {batch[i]}' for i in range(len(batch))]
             for chunk in chunks:
-                response = self.generate_content([chunk, numbered_batch], system_prompt=system_prompt)
+                query_contents = f'Content:\n{chunk}\n\nThere are {len(batch)} questions. The questions are:\n' + '\n\t- '.join(batch)
+                response = self.generate_content(query_contents, system_prompt=system_prompt)
 
                 total_input_tokens += response["input tokens"]
                 total_output_tokens += response["output tokens"]
 
                 # TODO: If the question has already been answered in a previous chunk the new answer is disregarded, this can be
                 # further optimised so the question is not asked again.
-
                 for i in range(len(response['text'])):
-                    if batch[i] not in answers.keys() and response['text'][f'{i+1}'] != '-1':
-                        answers[batch[i]] = response['text'][f'{i+1}']
+                    if batch[i] not in answers.keys() and response['text'][i] !=  'N/A':
+                        answers[batch[i]] = response['text'][i]
         
-
         # TODO: Better way of returning? Tuple?
         return {
             "text" : answers,
@@ -154,12 +145,11 @@ class GeminiApi:
         questions : list[str],
         system_prompt : str = None
     ):
+        # A version of generate_content_fixed() that automatically chunks depending on the token limits of the model being used.
         
         # Adding default system prompt if one is not given.
         if system_prompt == None:
             system_prompt = DEFAULT_SYSTEM_PROMPT
-        
-        # A version of generate_content_fixed() that automatically chunks depending on the token limits of the model being used.
         
         model_info = self.client.models.get(model=self.model)
         input_token_limit = model_info.input_token_limit
@@ -189,7 +179,8 @@ class GeminiApi:
                 queue.append((chunked_content[1], curr_questions))
 
             else:
-                response = self.generate_content([curr_content, curr_questions], system_prompt=system_prompt)
+                query_contents = f'Content:\n{curr_content}\n\nThere are {len(curr_questions)} questions. The questions are:\n' + '\n\t- '.join(curr_questions)
+                response = self.generate_content(query_contents, system_prompt=system_prompt)
 
                 # TODO: This doesn't seem to actually occur, need a better way of doing this, checking if the output limit has been reached
                 if response["output tokens"] > output_token_limit:
@@ -198,8 +189,8 @@ class GeminiApi:
                     queue.append((curr_content, batched_questions[1]))
                 else:
                     for i in range(len(response['text'])):
-                        if curr_questions[i] not in answers.keys() and response['text'][f'{i+1}'] != '-1':
-                            answers[curr_questions[i]] = response['text'][f'{i+1}']
+                        if curr_questions[i] not in answers.keys() and response['text'][i] !=  'N/A':
+                            answers[curr_questions[i]] = response['text'][i]
                     total_input_tokens += response["input tokens"]
                     total_output_tokens += response["output tokens"]
 
@@ -213,6 +204,7 @@ class GeminiApi:
         self,
         content : str,
         questions : list[str],
+        system_prompt : str = None
     ):
         chunker = Chunker()
         content_chunks, question_batches = chunker.semantic_chunk_and_batch(content, questions)
@@ -220,17 +212,22 @@ class GeminiApi:
         total_input_tokens = 0
         total_output_tokens = 0
         answers = {}
+
+        # Adding default system prompt if one is not given.
+        if system_prompt == None:
+            system_prompt = DEFAULT_SYSTEM_PROMPT
         
         for i in range(len(content_chunks)):
             # If there are no questions in the current chunk's batch, then we don't need to query it.
             if len(question_batches[i]) != 0:
-                response = self.generate_content([content_chunks[i], question_batches[i]])
+                query_contents = f'Content:\n{content_chunks[i]}\n\nThere are {len(question_batches[i])} questions. The questions are:\n' + '\n\t- '.join(question_batches[i])
+                response = self.generate_content(query_contents, system_prompt=system_prompt)
 
                 total_input_tokens += response["input tokens"]
                 total_output_tokens += response["output tokens"]
                 
                 for j in range(len(response["text"])):
-                    answers[question_batches[i][j]] = response["text"][f'{j+1}']
+                    answers[question_batches[i][j]] = response["text"][j]
         
         # TODO: Better way of returning? Tuple?
         return {
