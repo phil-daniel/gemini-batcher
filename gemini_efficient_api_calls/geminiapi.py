@@ -6,6 +6,7 @@ from google import genai
 from google.genai import types, errors
 
 from .chunker import Chunker
+from .mediachunker import MediaChunker
 
 DEFAULT_SYSTEM_PROMPT = """
     You are an AI assistant tasked with answering questions based on the information provided to you, with each answer being a **single** string in the JSON response.
@@ -40,6 +41,7 @@ class GeminiApi:
     def generate_content(
         self,
         prompt : str,
+        file = None,
         system_prompt : str = None,
         max_retries : int = 5,
     ):
@@ -57,9 +59,10 @@ class GeminiApi:
                     config=types.GenerateContentConfig(
                         response_mime_type="application/json",
                         response_schema=list[str],
-                        system_instruction=system_prompt
+                        system_instruction=system_prompt,
                     ),
-                    contents=prompt
+                    contents=prompt,
+                    file=file
                 )
 
                 # TODO: Information about token usage, this can be used to compare performance between different designs
@@ -104,7 +107,8 @@ class GeminiApi:
         system_prompt : str = None
     ):
         # TODO: Currently can only handle a text response i.e. not a code block.
-        
+        # TODO: enable_sliding_window isn't really required if we just set window to 0 at default.
+
         # Chunking and Batching the questions
         chunker = Chunker()
         if enable_sliding_window:
@@ -230,6 +234,55 @@ class GeminiApi:
                     answers[question_batches[i][j]] = response["text"][j]
         
         # TODO: Better way of returning? Tuple?
+        return {
+            "text" : answers,
+            "input tokens" : total_input_tokens,
+            "output tokens" : total_output_tokens
+        }
+
+    def generate_content_media(
+        self,
+        media_path : str,
+        questions : list[str],
+        chunk_duration : int = 100,
+        questions_per_batch : int = 50,
+        window_duration : int = 0,
+        system_prompt : str = None
+    ):
+        
+        # Adding default system prompt if one is not given.
+        if system_prompt == None:
+            system_prompt = DEFAULT_SYSTEM_PROMPT
+
+        chunker = MediaChunker()
+        number_of_chunks = chunker.sliding_window_chunking_by_duration(media_path, chunk_duration, window_duration)
+
+        batching = Chunker()
+        question_batches = batching.fixed_question_batching(questions, questions_per_batch)
+
+        answers = {}
+
+        total_input_tokens = 0
+        total_output_tokens = 0
+
+        for batch in question_batches:
+            for i in range(number_of_chunks):
+                query_contents = f'Content:\nThis has been attached as a media file, named {media_path}\n\nThere are {len(batch)} questions. The questions are:\n' + '\n\t- '.join(batch)
+                
+                file = self.client.files.upload(file=f'./temp_output/chunk_{i}.mp4')
+                
+                response = self.generate_content(query_contents, system_prompt=system_prompt, file=file)
+
+                total_input_tokens += response["input tokens"]
+                total_output_tokens += response["output tokens"]
+
+                # TODO: If the question has already been answered in a previous chunk the new answer is disregarded, this can be
+                # further optimised so the question is not asked again.
+                for i in range(len(response['text'])):
+                    if batch[i] not in answers.keys() and response['text'][i] !=  'N/A':
+                        answers[batch[i]] = response['text'][i]
+
+
         return {
             "text" : answers,
             "input tokens" : total_input_tokens,
