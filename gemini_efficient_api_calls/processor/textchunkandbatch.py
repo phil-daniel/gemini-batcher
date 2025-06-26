@@ -192,6 +192,23 @@ class TextChunkAndBatch():
         max_sentences_per_chunk : int = 20,
         transformer_model : str = 'all-MiniLM-L6-v2'
     ) -> tuple[list[str], list[list[str]]]:
+        """
+        Chunks the input text into segments semantically based on the similarity between consecutive sentences and then groups the
+        questions into batches based on each question's most semantically similar chunk.
+
+        Inputs:
+            - text_input: The content to be chunked, held in a TextInput class (either BaseTextInput, FileInput or WebsiteInput)
+            - questions: The list of questions to be batched.
+            - min_sentences_per_chunk: The minimum number of sentences within each chunk.
+            - max_sentences_per_chunk: The maximum number of sentences within each chunk.
+            - threashold_factor: The factor used to decide whether two consecutive sentences are similar enough,
+              must be within mean-(std_dev*threashold_factor)
+            - transformer_model: The SentenceTransformer model used to create sentence embeddings.
+
+        Output: A tuple of the following:
+            - A list of strings, where each string is a chunk of the inputted content.
+            - A list of list of strings, where each string is one of the inputted question and each sublist is a batch of questions.
+        """ 
         
         # TODO: Add changeable threashold factor
         # TODO: Change min_sentences per chunk to min characters..

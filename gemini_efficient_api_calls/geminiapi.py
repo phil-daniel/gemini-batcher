@@ -8,6 +8,9 @@ from google.genai import types, errors
 from .chunker import Chunker
 from .mediachunker import MediaChunker
 
+from .input_handler.textinputs import BaseTextInput, FileInput, WebsiteInput
+from .processor.textchunkandbatch import TextChunkAndBatch
+
 DEFAULT_SYSTEM_PROMPT = """
     You are an AI assistant tasked with answering questions based on the information provided to you, with each answer being a **single** string in the JSON response.
     There should be the **exactly** same number of answers as inputted questions, no more, no less.
@@ -53,6 +56,8 @@ class GeminiApi:
             system_prompt = DEFAULT_SYSTEM_PROMPT
 
         for i in range(max_retries):
+            if file:
+                prompt = [prompt, file]
             try:
                 response = self.client.models.generate_content(
                     model=self.model,
@@ -61,8 +66,7 @@ class GeminiApi:
                         response_schema=list[str],
                         system_instruction=system_prompt,
                     ),
-                    contents=prompt,
-                    file=file
+                    contents= prompt
                 )
 
                 # TODO: Information about token usage, this can be used to compare performance between different designs
@@ -102,20 +106,30 @@ class GeminiApi:
         questions : list[str],
         chunk_char_length : int = 100000,
         questions_per_batch : int = 50,
-        enable_sliding_window : bool = False,
         window_char_length : int = 100,
         system_prompt : str = None
     ):
         # TODO: Currently can only handle a text response i.e. not a code block.
-        # TODO: enable_sliding_window isn't really required if we just set window to 0 at default.
 
-        # Chunking and Batching the questions
-        chunker = Chunker()
-        if enable_sliding_window:
-            chunks = chunker.sliding_window_chunking_by_size(content, chunk_char_length, window_char_length)
-        else:
-            chunks = chunker.fixed_chunking_by_size(content, chunk_char_length)
-        question_batches = chunker.fixed_question_batching(questions, questions_per_batch)
+        # # Chunking and Batching the questions
+        # chunker = Chunker()
+        # if enable_sliding_window:
+        #     chunks = chunker.sliding_window_chunking_by_size(content, chunk_char_length, window_char_length)
+        # else:
+        #     chunks = chunker.fixed_chunking_by_size(content, chunk_char_length)
+        # question_batches = chunker.fixed_question_batching(questions, questions_per_batch)
+
+        # TODO: Change this so an actually input class is just passed to the function.
+        input = BaseTextInput(content)
+        chunks = TextChunkAndBatch.chunk_sliding_window_by_length(
+            text_input = input,
+            chunk_char_size = chunk_char_length,
+            window_char_size = window_char_length
+        )
+        question_batches = TextChunkAndBatch.batch_by_number_of_questions(
+            questions = questions, 
+            questions_per_batch = questions_per_batch
+        )
 
         answers = {}
 
