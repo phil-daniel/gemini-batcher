@@ -3,7 +3,8 @@ import requests
 
 # TODO: Using inheritance to simplify structure
 
-class TextInput():
+class BaseTextInput():
+    content = ""
 
     def __init__(
         self,
@@ -11,7 +12,7 @@ class TextInput():
     ):
         self.content = content
 
-class FileInput():
+class FileInput(BaseTextInput):
 
     def __init__(
         self,
@@ -27,7 +28,7 @@ class FileInput():
             logging.error('File reading has currently only been implemented for txt files.')
             raise NotImplementedError("Only text file reading has been implemented")
 
-class WebsiteInput():
+class WebsiteInput(BaseTextInput):
 
     def __init__(
         self,
