@@ -4,7 +4,7 @@ import requests
 # TODO: Using inheritance to simplify structure
 
 class BaseTextInput():
-    content = ""
+    content : str = ""
 
     def __init__(
         self,

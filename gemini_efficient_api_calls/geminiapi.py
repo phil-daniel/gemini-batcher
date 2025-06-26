@@ -8,7 +8,7 @@ from google.genai import types, errors
 from .chunker import Chunker
 from .mediachunker import MediaChunker
 
-from .input_handler.textinputs import BaseTextInput, FileInput, WebsiteInput
+from .input_handler.textinputs import BaseTextInput
 from .processor.textchunkandbatch import TextChunkAndBatch
 
 DEFAULT_SYSTEM_PROMPT = """
@@ -102,7 +102,7 @@ class GeminiApi:
 
     def generate_content_fixed(
         self,
-        content : str,
+        content : BaseTextInput,
         questions : list[str],
         chunk_char_length : int = 100000,
         questions_per_batch : int = 50,
@@ -119,10 +119,8 @@ class GeminiApi:
         #     chunks = chunker.fixed_chunking_by_size(content, chunk_char_length)
         # question_batches = chunker.fixed_question_batching(questions, questions_per_batch)
 
-        # TODO: Change this so an actually input class is just passed to the function.
-        input = BaseTextInput(content)
         chunks = TextChunkAndBatch.chunk_sliding_window_by_length(
-            text_input = input,
+            text_input = content,
             chunk_char_size = chunk_char_length,
             window_char_size = window_char_length
         )
