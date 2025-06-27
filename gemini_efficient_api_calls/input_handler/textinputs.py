@@ -2,8 +2,6 @@ import logging
 import requests
 from requests.exceptions import RequestException, HTTPError
 
-# TODO: Using inheritance to simplify structure
-
 class BaseTextInput():
     content : str = ""
 
