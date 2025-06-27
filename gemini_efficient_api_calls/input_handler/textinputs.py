@@ -1,5 +1,6 @@
 import logging
 import requests
+from requests.exceptions import RequestException, HTTPError
 
 # TODO: Using inheritance to simplify structure
 
@@ -35,5 +36,11 @@ class WebsiteInput(BaseTextInput):
         link : str
     ):
         # TODO: Error handling, website doesnt exist, retry error etc
-        response = requests.get(link)
-        self.content = response.text
+        try:
+
+            response = requests.get(link)
+            response.raise_for_status()
+
+            self.content = response.text
+        except:
+            pass

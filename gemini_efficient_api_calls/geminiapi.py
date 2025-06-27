@@ -1,6 +1,7 @@
 import json
 import time
 import logging
+from typing import Any
 
 from google import genai
 from google.genai import types, errors
@@ -19,6 +20,21 @@ DEFAULT_SYSTEM_PROMPT = """
     * **Completeness:** Ensure each answer fully addresses the question, *to the extent possible with the given transcript*.
     * **Missing Information:** If the information required to answer a question is not discussed or cannot be directly derived from the transcript, respond with "N/A".
 """
+
+class Response:
+    content : Any
+    input_tokens : int
+    output_tokens : int
+
+    def __init__(
+        self,
+        content : Any,
+        input_tokens : int,
+        output_tokens : int
+    ):
+        self.content = content
+        self.input_tokens = input_tokens
+        self.output_tokens = output_tokens
 
 class GeminiApi:
 
@@ -73,11 +89,11 @@ class GeminiApi:
                 input_tokens = response.usage_metadata.prompt_token_count
                 output_tokens = response.usage_metadata.candidates_token_count
 
-                return {
-                    "text" : self.parse_json(response.text),
-                    "input tokens" : input_tokens,
-                    "output tokens" : output_tokens,
-                }
+                return Response(
+                    content = self.parse_json(response.text),
+                    input_tokens = input_tokens,
+                    output_tokens = output_tokens
+                )
             except errors.APIError as e:
                 if e.code == 429:
                     # TODO: Is it possible to identify how long we have to way instead of just doing 10 seconds?
@@ -94,11 +110,11 @@ class GeminiApi:
                 continue
         
         # TODO: Handle failure better
-        return {
-            'text' : [],
-            'input tokens' : 0,
-            'output tokens' : 0
-        }
+        return Response(
+            content = [],
+            input_tokens = 0,
+            output_tokens = 0
+        )
 
     def generate_content_fixed(
         self,
@@ -139,25 +155,25 @@ class GeminiApi:
                 query_contents = f'Content:\n{chunk}\n\nThere are {len(batch)} questions. The questions are:\n' + '\n\t- '.join(batch)
                 response = self.generate_content(query_contents, system_prompt=system_prompt)
 
-                total_input_tokens += response["input tokens"]
-                total_output_tokens += response["output tokens"]
+                total_input_tokens += response.input_tokens
+                total_output_tokens += response.output_tokens
 
                 # TODO: If the question has already been answered in a previous chunk the new answer is disregarded, this can be
                 # further optimised so the question is not asked again.
-                for i in range(len(response['text'])):
-                    if batch[i] not in answers.keys() and response['text'][i] !=  'N/A':
-                        answers[batch[i]] = response['text'][i]
+                for i in range(len(response.content)):
+                    if batch[i] not in answers.keys() and response.content[i] !=  'N/A':
+                        answers[batch[i]] = response.content[i]
         
         # TODO: Better way of returning? Tuple?
-        return {
-            "text" : answers,
-            "input tokens" : total_input_tokens,
-            "output tokens" : total_output_tokens
-        }
+        return Response(
+            content = answers,
+            input_tokens = total_input_tokens,
+            output_tokens = total_output_tokens
+        )
     
     def generate_content_token_aware(
         self,
-        content : str,
+        content : BaseTextInput,
         questions : list[str],
         system_prompt : str = None
     ):
@@ -174,10 +190,8 @@ class GeminiApi:
         total_input_tokens = 0
         total_output_tokens = 0
 
-        chunker = Chunker()
-
         answers = {}
-        queue = [(content, questions)]
+        queue = [(content.content, questions)]
 
         while len(queue) > 0:
             curr_content, curr_questions = queue.pop(0)
@@ -189,7 +203,7 @@ class GeminiApi:
             # Checking if the content is too large for the input token limit, if so splitting the content in half
             # TODO: Add ability to use sliding window
             if input_tokens_used > input_token_limit:
-                chunked_content = chunker.fixed_chunking_by_num(curr_content, 2)
+                chunked_content = [curr_content[0: len(curr_content)//2 + 1], curr_content[len(curr_content)//2 + 1 : len(curr_content)]]
 
                 queue.append((chunked_content[0], curr_questions))
                 queue.append((chunked_content[1], curr_questions))
@@ -199,31 +213,30 @@ class GeminiApi:
                 response = self.generate_content(query_contents, system_prompt=system_prompt)
 
                 # TODO: This doesn't seem to actually occur, need a better way of doing this, checking if the output limit has been reached
-                if response["output tokens"] > output_token_limit:
-                    batched_questions = chunker.fixed_question_batching(curr_questions, len(curr_questions)//2 + 1)
+                if response.output_tokens > output_token_limit:
+                    batched_questions = TextChunkAndBatch.batch_by_number_of_questions(curr_questions, len(curr_questions)//2 + 1)
                     queue.append((curr_content, batched_questions[0]))
                     queue.append((curr_content, batched_questions[1]))
                 else:
-                    for i in range(len(response['text'])):
-                        if curr_questions[i] not in answers.keys() and response['text'][i] !=  'N/A':
-                            answers[curr_questions[i]] = response['text'][i]
-                    total_input_tokens += response["input tokens"]
-                    total_output_tokens += response["output tokens"]
+                    for i in range(len(response.content)):
+                        if curr_questions[i] not in answers.keys() and response.content[i] !=  'N/A':
+                            answers[curr_questions[i]] = response.content[i]
+                    total_input_tokens += response.input_tokens
+                    total_output_tokens += response.output_tokens
 
-        return {
-            "text" : answers,
-            "input tokens" : total_input_tokens,
-            "output tokens" : total_output_tokens
-        }
+        return Response(
+            content = answers,
+            input_tokens = total_input_tokens,
+            output_tokens = total_output_tokens
+        )
 
     def generate_content_semantic(
         self,
-        content : str,
+        content : BaseTextInput,
         questions : list[str],
         system_prompt : str = None
     ):
-        chunker = Chunker()
-        content_chunks, question_batches = chunker.semantic_chunk_and_batch(content, questions)
+        content_chunks, question_batches = TextChunkAndBatch.chunk_and_batch_semantically(content, questions)
 
         total_input_tokens = 0
         total_output_tokens = 0
@@ -239,18 +252,17 @@ class GeminiApi:
                 query_contents = f'Content:\n{content_chunks[i]}\n\nThere are {len(question_batches[i])} questions. The questions are:\n' + '\n\t- '.join(question_batches[i])
                 response = self.generate_content(query_contents, system_prompt=system_prompt)
 
-                total_input_tokens += response["input tokens"]
-                total_output_tokens += response["output tokens"]
+                total_input_tokens += response.input_tokens
+                total_output_tokens += response.output_tokens
                 
-                for j in range(len(response["text"])):
-                    answers[question_batches[i][j]] = response["text"][j]
+                for j in range(len(response.content)):
+                    answers[question_batches[i][j]] = response.content[j]
         
-        # TODO: Better way of returning? Tuple?
-        return {
-            "text" : answers,
-            "input tokens" : total_input_tokens,
-            "output tokens" : total_output_tokens
-        }
+        return Response(
+            content = answers,
+            input_tokens = total_input_tokens,
+            output_tokens = total_output_tokens
+        )
 
     def generate_content_media(
         self,
@@ -269,8 +281,7 @@ class GeminiApi:
         chunker = MediaChunker()
         number_of_chunks = chunker.sliding_window_chunking_by_duration(media_path, chunk_duration, window_duration)
 
-        batching = Chunker()
-        question_batches = batching.fixed_question_batching(questions, questions_per_batch)
+        question_batches = TextChunkAndBatch.batch_by_number_of_questions(questions, questions_per_batch)
 
         answers = {}
 
@@ -285,18 +296,18 @@ class GeminiApi:
                 
                 response = self.generate_content(query_contents, system_prompt=system_prompt, file=file)
 
-                total_input_tokens += response["input tokens"]
-                total_output_tokens += response["output tokens"]
+                total_input_tokens += response.input_tokens
+                total_output_tokens += response.output_tokens
 
                 # TODO: If the question has already been answered in a previous chunk the new answer is disregarded, this can be
                 # further optimised so the question is not asked again.
-                for i in range(len(response['text'])):
-                    if batch[i] not in answers.keys() and response['text'][i] !=  'N/A':
-                        answers[batch[i]] = response['text'][i]
+                for i in range(len(response.content)):
+                    if batch[i] not in answers.keys() and response.content[i] !=  'N/A':
+                        answers[batch[i]] = response.content[i]
 
 
-        return {
-            "text" : answers,
-            "input tokens" : total_input_tokens,
-            "output tokens" : total_output_tokens
-        }
+        return Response(
+            content = answers,
+            input_tokens = total_input_tokens,
+            output_tokens = total_output_tokens
+        )
