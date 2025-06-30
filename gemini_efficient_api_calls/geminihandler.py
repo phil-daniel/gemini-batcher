@@ -38,14 +38,6 @@ class GeminiHandler:
         system_prompt : str = None
     ):
         # TODO: Currently can only handle a text response i.e. not a code block.
-
-        # # Chunking and Batching the questions
-        # chunker = Chunker()
-        # if enable_sliding_window:
-        #     chunks = chunker.sliding_window_chunking_by_size(content, chunk_char_length, window_char_length)
-        # else:
-        #     chunks = chunker.fixed_chunking_by_size(content, chunk_char_length)
-        # question_batches = chunker.fixed_question_batching(questions, questions_per_batch)
  
         chunks = TextChunkAndBatch.chunk_sliding_window_by_length(
             text_input = content,
@@ -91,13 +83,7 @@ class GeminiHandler:
     ):
         # A version of generate_content_fixed() that automatically chunks depending on the token limits of the model being used.
         
-        # Adding default system prompt if one is not given.
-        if system_prompt == None:
-            system_prompt = DEFAULT_SYSTEM_PROMPT
-        
-        model_info = self.client.models.get(model=self.model)
-        input_token_limit = model_info.input_token_limit
-        output_token_limit = model_info.output_token_limit
+        input_token_limit, output_token_limit = self.gemini_api.get_model_token_limits
 
         total_input_tokens = 0
         total_output_tokens = 0
@@ -108,8 +94,8 @@ class GeminiHandler:
         while len(queue) > 0:
             curr_content, curr_questions = queue.pop(0)
 
-            input_tokens_used = self.client.models.count_tokens(
-                model=self.model, contents = [system_prompt, curr_content, curr_questions]
+            input_tokens_used = self.gemini_api.count_tokens(
+                contents = [system_prompt, curr_content, curr_questions]
             )
 
             # Checking if the content is too large for the input token limit, if so splitting the content in half
