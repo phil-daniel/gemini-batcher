@@ -2,6 +2,7 @@ import json
 import time
 import logging
 from typing import Any
+import os
 
 from google import genai
 from google.genai import types, errors
@@ -10,6 +11,7 @@ from .mediachunker import MediaChunker
 
 from .input_handler.textinputs import BaseTextInput
 from .processor.textchunkandbatch import TextChunkAndBatch
+from .processor.mediachunkandbatch import MediaChunkAndBatch
 
 from .geminiapi import Response, GeminiApi
 
@@ -36,7 +38,7 @@ class GeminiHandler:
         questions_per_batch : int = 50,
         window_char_length : int = 100,
         system_prompt : str = None
-    ):
+    ) -> Response:
         # TODO: Currently can only handle a text response i.e. not a code block.
  
         chunks = TextChunkAndBatch.chunk_sliding_window_by_length(
@@ -80,10 +82,10 @@ class GeminiHandler:
         content : BaseTextInput,
         questions : list[str],
         system_prompt : str = None
-    ):
+    ) -> Response:
         # A version of generate_content_fixed() that automatically chunks depending on the token limits of the model being used.
         
-        input_token_limit, output_token_limit = self.gemini_api.get_model_token_limits
+        input_token_limit, output_token_limit = self.gemini_api.get_model_token_limits()
 
         total_input_tokens = 0
         total_output_tokens = 0
@@ -101,7 +103,7 @@ class GeminiHandler:
             # Checking if the content is too large for the input token limit, if so splitting the content in half
             # TODO: Add ability to use sliding window
             if input_tokens_used > input_token_limit:
-                chunked_content = [curr_content[0: len(curr_content)//2 + 1], curr_content[len(curr_content)//2 + 1 : len(curr_content)]]
+                chunked_content = [curr_content[0 : len(curr_content)//2 + 1], curr_content[len(curr_content)//2 + 1 : len(curr_content)]]
 
                 queue.append((chunked_content[0], curr_questions))
                 queue.append((chunked_content[1], curr_questions))
@@ -133,7 +135,7 @@ class GeminiHandler:
         content : BaseTextInput,
         questions : list[str],
         system_prompt : str = None
-    ):
+    ) -> Response:
         content_chunks, question_batches = TextChunkAndBatch.chunk_and_batch_semantically(content, questions)
 
         total_input_tokens = 0
@@ -167,35 +169,42 @@ class GeminiHandler:
         window_duration : int = 0,
         system_prompt : str = None
     ):
+        
+        a, b = MediaChunkAndBatch.chunk_and_batch_semantically(media_path, questions, self.gemini_api)
+        print(a)
+        print(b)
 
-        chunker = MediaChunker()
-        number_of_chunks = chunker.sliding_window_chunking_by_duration(media_path, chunk_duration, window_duration)
+        return
 
-        question_batches = TextChunkAndBatch.batch_by_number_of_questions(questions, questions_per_batch)
+        # chunker = MediaChunker()
+        # number_of_chunks = chunker.sliding_window_chunking_by_duration(media_path, chunk_duration, window_duration)
 
-        answers = {}
+        # question_batches = TextChunkAndBatch.batch_by_number_of_questions(questions, questions_per_batch)
 
-        total_input_tokens = 0
-        total_output_tokens = 0
+        # answers = {}
 
-        for batch in question_batches:
-            for i in range(number_of_chunks):
-                query_contents = f'Content:\nThis has been attached as a media file, named {media_path}\n\nThere are {len(batch)} questions. The questions are:\n' + '\n\t- '.join(batch)
+        # total_input_tokens = 0
+        # total_output_tokens = 0
+
+        # for batch in question_batches:
+        #     for i in range(number_of_chunks):
+        #         query_contents = f'Content:\nThis has been attached as a media file, named {media_path}\n\nThere are {len(batch)} questions. The questions are:\n' + '\n\t- '.join(batch)
                                 
-                response = self.gemini_api.generate_content(query_contents, system_prompt=system_prompt, files=[f'./temp_output/chunk_{i}.mp4'])
+        #         response = self.gemini_api.generate_content(query_contents, system_prompt=system_prompt, files=[f'./temp_output/chunk_{i}.mp4'])
 
-                total_input_tokens += response.input_tokens
-                total_output_tokens += response.output_tokens
+        #         total_input_tokens += response.input_tokens
+        #         total_output_tokens += response.output_tokens
 
-                # TODO: If the question has already been answered in a previous chunk the new answer is disregarded, this can be
-                # further optimised so the question is not asked again.
-                for i in range(len(response.content)):
-                    if batch[i] not in answers.keys() and response.content[i] !=  'N/A':
-                        answers[batch[i]] = response.content[i]
+        #         # TODO: If the question has already been answered in a previous chunk the new answer is disregarded, this can be
+        #         # further optimised so the question is not asked again.
+        #         for i in range(len(response.content)):
+        #             if batch[i] not in answers.keys() and response.content[i] !=  'N/A':
+        #                 answers[batch[i]] = response.content[i]
 
 
-        return Response(
-            content = answers,
-            input_tokens = total_input_tokens,
-            output_tokens = total_output_tokens
-        )
+        # return Response(
+        #     content = answers,
+        #     input_tokens = total_input_tokens,
+        #     output_tokens = total_output_tokens
+        # )
+

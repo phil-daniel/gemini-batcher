@@ -3,7 +3,9 @@ import os
 import ffmpeg
 
 from .textchunkandbatch import TextChunkAndBatch
+from ..input_handler.textinputs import BaseTextInput
 from ..input_handler.otherinputs import VideoFileInput
+from ..geminiapi import GeminiApi
 
 class MediaChunkAndBatch():
     
@@ -26,7 +28,6 @@ class MediaChunkAndBatch():
         return TextChunkAndBatch.batch_by_number_of_questions(questions, questions_per_batch)
     
     def chunk_sliding_window_by_duration(
-        self,
         media_input : VideoFileInput,
         chunk_duration : int = 100,
         window_duration : int = 0,
@@ -60,6 +61,56 @@ class MediaChunkAndBatch():
 
         return chunked_files
 
+    def chunk_and_batch_semantically(
+        media_input : VideoFileInput,
+        questions : list[str],
+        gemini_client : GeminiApi,
+        min_sentences_per_chunk : int = 5,
+        max_sentences_per_chunk : int = 20,
+        transformer_model : str = 'all-MiniLM-L6-v2'
+    ):
+        
+        timestamps, sentences = MediaChunkAndBatch.generate_transcript(media_input.filepath, gemini_client)
+
+        # TODO: Tidy up the basetextinput part
+        chunked_text = TextChunkAndBatch.chunk_semantically(
+            text_input = BaseTextInput(" ".join(sentences)), 
+            min_sentences_per_chunk = min_sentences_per_chunk,
+            max_sentences_per_chunk = max_sentences_per_chunk,
+            transformer_model = transformer_model
+        )
+
+        batched_questions = TextChunkAndBatch.batch_with_chunks_semantically(
+            chunked_content = chunked_text,
+            questions = questions,
+            transformer_model = transformer_model
+        )
+
+        # Handle same sentence twice in a transcript
+        chunk_timestamps = []
+        for chunk in chunked_text:
+            final_sentence = chunk.split('. ')[-1].strip()
+            index = sentences.index(final_sentence)
+
+            if index != 0:
+                start_time = timestamps[index]
+            else:
+                start_time = 0
+            
+            if index == len(sentences) - 1:
+                end_time = MediaChunkAndBatch.get_video_duration(media_input.filepath)
+            else:
+                end_time = timestamps[index + 1]
+            
+            chunk_timestamps.append((start_time, end_time))
+
+        for chunk in chunked_text:
+            print(chunk)
+
+
+        return chunk_timestamps, batched_questions
+
+
     def get_video_duration(
         path : str
     ) -> float:
@@ -82,11 +133,11 @@ class MediaChunkAndBatch():
         return duration
     
     def trim_video(
-            in_path : str,
-            out_path : str,
-            start_time : float,
-            duration : float
-        ):
+        in_path : str,
+        out_path : str,
+        start_time : float,
+        duration : float
+    ):
         """
         Returns the duration of the video stored at the inputted file path in seconds.
 
@@ -103,3 +154,36 @@ class MediaChunkAndBatch():
         # TODO: Error checking to ensure that the file path exists
         ffmpeg.input(in_path, ss=start_time).output(out_path, to=duration, c='copy').run(overwrite_output=True, capture_stdout=True, capture_stderr=True)
         return
+    
+    def extract_audio(
+        in_path : str,
+        out_path : str
+    ):
+        ffmpeg.input(in_path).output(out_path, ac=1, ar='8000').run(overwrite_output=True)
+    
+    def generate_transcript(
+        filepath : str,
+        gemini_client : GeminiApi
+    ):
+        # TODO: Handle the transcript being over the API token limit.
+
+        # TODO: Need to remove the file once done and tidy up.
+        MediaChunkAndBatch.extract_audio(filepath, "temp_sound.wav")
+        filepath = "temp_sound.wav"
+
+        prompt = "Create a transcript of the provided media, in the format of: start time of sentence in seconds, caption."
+        response = gemini_client.generate_content(
+            prompt = prompt,
+            files = [filepath],
+            system_prompt = ""
+        )
+
+        timestamps = []
+        sentences = []
+        # Update prompt to simplify this
+        for line in response.content:
+            first_comma = line.find(',')
+            timestamps.append(line[:first_comma])
+            sentences.append(line[first_comma+2:].strip())
+
+        return timestamps, sentences

@@ -79,7 +79,7 @@ class GeminiApi:
     def generate_content(
         self,
         prompt : str,
-        files = [],
+        files : list[str] = [],
         system_prompt : str = None,
         max_retries : int = 5,
     ):
@@ -89,11 +89,17 @@ class GeminiApi:
         # Adding default system prompt if one is not given.
         if system_prompt == None:
             system_prompt = DEFAULT_SYSTEM_PROMPT
-
+        
         if len(files) != 0:
             prompt = [prompt]
-            for file in range(len(files)):
+            for file in files:
                 uploaded_file = self.client.files.upload(file=file)
+
+                while uploaded_file.state.name == "PROCESSING" or uploaded_file.state.name == "PENDING":
+                    print (f'Waiting for file to upload: current state {uploaded_file.state.name}')
+                    time.sleep(5)
+
+                print (uploaded_file.state.name)
                 prompt.append(uploaded_file)
 
         for i in range(max_retries):
@@ -118,6 +124,7 @@ class GeminiApi:
                     output_tokens = output_tokens
                 )
             except errors.APIError as e:
+                print(e)
                 if e.code == 429:
                     # TODO: Is it possible to identify how long we have to way instead of just doing 10 seconds?
                     logging.info(f'Rate limit exceeded, waiting 20 seconds before retrying API call')
@@ -127,6 +134,7 @@ class GeminiApi:
                 else:
                     logging.info(f'Unknown API Error occured, Error Code: {e.code}\nError Message: {e.message}')
             except Exception as e:
+                print(e)
                 logging.info(f'Unkown expection occured: {e}')
                 logging.info("Retrying API call in 20 seconds.")
                 time.sleep(20)
