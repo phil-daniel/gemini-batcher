@@ -4,4 +4,4 @@ from .input_handler.textinputs import BaseTextInput, FileInput, WebsiteInput
 from .processor.textchunkandbatch import TextChunkAndBatch
 from .processor.mediachunkandbatch import MediaChunkAndBatch
 
-__version__ = "0.1.1"
+__version__ = "0.1.5"
