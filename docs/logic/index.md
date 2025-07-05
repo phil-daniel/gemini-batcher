@@ -1,5 +1,5 @@
 ---
-title: Logic
+title: Concepts
 nav_order: 5
 ---
 
