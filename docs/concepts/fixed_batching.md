@@ -18,7 +18,7 @@ There are, however, some considerations which need to be made during implementat
 
 ## Examples
 
-[Link to Google Colab when created]
+The following examples demonstrate the efficiency gains achieved when using batching and can be tested yourself by following the setup information or accessing the Google Colab [Link to Google Colab when created].
 
 In the first example, no batching is used and questions are instead answered sequentially using on the content, with a custom system prompt used to ensure response accuracy.
 
@@ -88,3 +88,5 @@ for batch in batched_questions:
 print (f'Input tokens used: {input_tokens}')
 print (f'Output tokens used: {output_tokens}')
 ```
+
+In the above example, only simple batching logic is used, however there are also more advanced techniques which also be implemented to provide increased efficiency. Many of these techniques also have to be combined with chunking, a technique for breaking down content into small parts.
