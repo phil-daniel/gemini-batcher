@@ -11,7 +11,7 @@ Some of code samples require addition python libraries and boilerplate code, the
 
 ## Setup
 
-# TO ADD: SETUP API KEY GUIDE
+### TO ADD: SETUP API KEY GUIDE
 
 ```python
 # Built-in Python Libaries
@@ -34,10 +34,10 @@ load_dotenv() # Loading the environment variables from the '.env' file.
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") # Retrieving the 'GEMINI_API_KEY' environment variable.
 ```
 
-Throughout this documentation, the usage of these techniques is demonstrated by attempting to answer a series of questions based on the transcript of a lecture. The example resources used in these scenarios can be retrieved as follows: 
+Throughout this documentation, the usage of these techniques is demonstrated by attempting to answer a series of questions based on the transcript of a lecture. The example resources used in these scenarios can be retrieved as follows.
 ```python
 import requests
 
-questions = requests.get("https://raw.githubusercontent.com/phil-daniel/gemini-batcher/blob/main/example/demo_files/questions.txt").text.split('\n')
-answers = requests.get("https://raw.githubusercontent.com/phil-daniel/gemini-batcher/blob/main/example/demo_files/content.txt").text
+questions = requests.get("https://raw.githubusercontent.com/phil-daniel/gemini-batcher/blob/main/examples/demo_files/questions.txt").text.split('\n')
+answers = requests.get("https://raw.githubusercontent.com/phil-daniel/gemini-batcher/blob/main/examples/demo_files/content.txt").text
 ```
