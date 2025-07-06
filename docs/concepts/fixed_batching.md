@@ -12,13 +12,15 @@ Batching API calls together can provide several benefits, including:
 - Reduced latency - Rather than having to make repeated HTTP calls, only a single one must be made, reducing latency. In addition, since many LLM APIs have rate limits, the number of requests which can be made may be limited. 
 - Improved cost efficiency - In some situations, combining your inputs into a single API call can reduce the number of tokens required. For example, given a paragraph costing 400 tokens to process, and 5 questions each costing 10 tokens, asking the questions one at a time would take ≈ (400 + 10) * 5 = 2050 tokens, whereas batching the questions would only take ≈ 400 + (10 * 5) = 450 tokens, giving a signficant improvement. An example of this is shown below.
 
-There are, however, some considerations which need to be made during implementation, including:
+There are, however, some considerations which need to be made during implementation, including:i 
 - Response parsing - The Gemini API will return the answers to each of the queries together so you must then be able to separate each of these answers and match them to their original queries. This problem can be simplified using prompt engineering and enforcing a JSON output which can be easily parsed.
 - Token limits - All LLM models have both input and output token limits which must be taken into account during batching as they may be exceed. Too many questions batched together many cause the input token limit to be exceeded and too large of a response from the API can cause the output token limit to be exceeded, so it is best to experiment with the batch size used for your specific scenario.
 
 ## Examples
 
 The following examples demonstrate the efficiency gains achieved when using batching and can be tested yourself by following the setup information or accessing the Google Colab [Link to Google Colab when created].
+
+### 1. No Batching
 
 In the first example, no batching is used and questions are instead answered sequentially using on the content, with a custom system prompt used to ensure response accuracy.
 
@@ -46,6 +48,8 @@ for question in questions:
 print (f'Input tokens used: {input_tokens}')
 print (f'Output tokens used: {output_tokens}')
 ```
+
+### 2. Fixed Batching
 
 In this second example, simple batching logic is used to group the questions into batches of 8, with each batch of questions being passed to the API one at a time. A slightly modified system prompt is also used, which requires the API to response in JSON format, which allows for every individual answer to be retrieved easily.
 
