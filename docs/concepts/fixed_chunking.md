@@ -22,7 +22,7 @@ In the following examples, we use an sample content containing ~54000 characters
 
 ### 1. Fixed Chunking
 
-In fixed chunking, the content is split into non-overlapping chunks each containing a set number of characters, in this case 10,000. ![An example of fixed chunking](images/fixed-chunking.png)
+In fixed chunking, the content is split into non-overlapping chunks each containing a set number of characters, in this case 10,000. ![An example of fixed chunking](images/fixed-chunking.svg)
 
 ```python
 chunk_char_size = 10000
