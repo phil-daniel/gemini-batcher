@@ -49,7 +49,7 @@ An example of this can be seen below.
 
 ```python
 chunk_char_size = 10000
-window_char_size = 2500
+window_char_size = 2000
 
 chunked_content = []
 chunk_count = math.ceil(len(content) / (chunk_char_size - window_char_size))

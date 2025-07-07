@@ -3,4 +3,6 @@ title: Library
 nav_order: 5
 ---
 
-# Library Docs
+# Batching Library Documentation
+
+## TODO: Setup & Install

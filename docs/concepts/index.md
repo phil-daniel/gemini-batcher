@@ -13,6 +13,8 @@ Some of code samples require addition python libraries and boilerplate code, the
 
 ### TO ADD: SETUP API KEY GUIDE
 
+### TO ADD : Pip install instructions
+
 ```python
 # Built-in Python Libaries
 import os
