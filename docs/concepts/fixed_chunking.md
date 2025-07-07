@@ -22,7 +22,8 @@ In the following examples, we use an sample content containing ~54000 characters
 
 ### 1. Fixed Chunking
 
-In fixed chunking, the content is split into non-overlapping chunks each containing a set number of characters, in this case 10,000. ![An example of fixed chunking](images/fixed_chunking.svg)
+In fixed chunking, the content is split into non-overlapping chunks each containing a set number of characters, in this case 10,000. An example of this can be seen below.
+![An example of fixed chunking](images/fixed_chunking.svg)
 
 ```python
 chunk_char_size = 10000
@@ -38,6 +39,13 @@ print(f'Number of chunks: {len(chunked_content)}')
 ```
 
 ### 2. Sliding Window Chunking
+
+One disadvantage of fixed chunking is that since it breaks context at arbitrary positions, important information may get split between chunks, meaning that neither chunk contains enough information to fully answer a question. 
+
+A simple solution to this is to follow a sliding window approach, where an overlap (called the window) between adjacent chunks is introduced. This increases the likelihood that a complete answer can be found within a single chunk, however can also increase the total number of chunks.
+
+An example of this can be seen below.
+![An example of sliding window chunking](images/sliding_window.svg)
 
 ```python
 chunk_char_size = 10000
