@@ -4,11 +4,6 @@ import logging
 from typing import Any
 import os
 
-from google import genai
-from google.genai import types, errors
-
-from .mediachunker import MediaChunker
-
 from .input_handler.textinputs import BaseTextInput
 from .processor.textchunkandbatch import TextChunkAndBatch
 from .processor.mediachunkandbatch import MediaChunkAndBatch
@@ -37,7 +32,7 @@ class GeminiHandler:
         chunk_char_length : int = 100000,
         questions_per_batch : int = 50,
         window_char_length : int = 100,
-        system_prompt : str = None
+        system_prompt : str = None,
     ) -> Response:
         # TODO: Currently can only handle a text response i.e. not a code block.
  
@@ -160,51 +155,67 @@ class GeminiHandler:
             output_tokens = total_output_tokens
         )
 
-    def generate_content_media(
+    def generate_content_media_fixed(
         self,
         media_path : str,
         questions : list[str],
         chunk_duration : int = 100,
         questions_per_batch : int = 50,
         window_duration : int = 0,
+        system_prompt : str = None,
+        use_explicit_caching : bool = True
+    ):
+        chunks = MediaChunkAndBatch.chunk_sliding_window_by_duration(media_path, chunk_duration, window_duration)
+        question_batches = TextChunkAndBatch.batch_by_number_of_questions(questions, questions_per_batch)
+
+        answers = {}
+
+        total_input_tokens = 0
+        total_output_tokens = 0
+
+        # There is no need to cache the chunks if each chunk is only used once.
+        if len(question_batches) == 1 and use_explicit_caching:
+            use_explicit_caching = False
+
+        for batch in question_batches:
+            for chunk in chunks:
+                query_contents = f'Content:\nThis has been attached as a media file, named {chunk}\n\nThere are {len(batch)} questions. The questions are:\n' + '\n\t- '.join(batch)
+                
+                if use_explicit_caching:
+                    if chunk not in self.gemini_api.cache.keys():
+                        self.gemini_api.add_to_cache(chunk)
+                    response = self.gemini_api.generate_content(query_contents, system_prompt=system_prompt, cache_name=chunk)
+                else:
+                    if chunk not in self.gemini_api.files.keys():
+                        self.gemini_api.upload_file(chunk)
+                    response = self.gemini_api.generate_content(query_contents, system_prompt=system_prompt, files=[chunk])
+
+                total_input_tokens += response.input_tokens
+                total_output_tokens += response.output_tokens
+
+                # TODO: If the question has already been answered in a previous chunk the new answer is disregarded, this can be
+                # further optimised so the question is not asked again.
+                for i in range(len(response.content)):
+                    if batch[i] not in answers.keys() and response.content[i] !=  'N/A':
+                        answers[batch[i]] = response.content[i]
+
+
+        return Response(
+            content = answers,
+            input_tokens = total_input_tokens,
+            output_tokens = total_output_tokens
+        )
+    
+    def generate_content_media_semantically(
+        self,
+        media_path : str,
+        questions : list[str],
+        questions_per_batch : int = 50,
         system_prompt : str = None
     ):
-        
         a, b = MediaChunkAndBatch.chunk_and_batch_semantically(media_path, questions, self.gemini_api)
         print(a)
         print(b)
 
         return
-
-        # chunker = MediaChunker()
-        # number_of_chunks = chunker.sliding_window_chunking_by_duration(media_path, chunk_duration, window_duration)
-
-        # question_batches = TextChunkAndBatch.batch_by_number_of_questions(questions, questions_per_batch)
-
-        # answers = {}
-
-        # total_input_tokens = 0
-        # total_output_tokens = 0
-
-        # for batch in question_batches:
-        #     for i in range(number_of_chunks):
-        #         query_contents = f'Content:\nThis has been attached as a media file, named {media_path}\n\nThere are {len(batch)} questions. The questions are:\n' + '\n\t- '.join(batch)
-                                
-        #         response = self.gemini_api.generate_content(query_contents, system_prompt=system_prompt, files=[f'./temp_output/chunk_{i}.mp4'])
-
-        #         total_input_tokens += response.input_tokens
-        #         total_output_tokens += response.output_tokens
-
-        #         # TODO: If the question has already been answered in a previous chunk the new answer is disregarded, this can be
-        #         # further optimised so the question is not asked again.
-        #         for i in range(len(response.content)):
-        #             if batch[i] not in answers.keys() and response.content[i] !=  'N/A':
-        #                 answers[batch[i]] = response.content[i]
-
-
-        # return Response(
-        #     content = answers,
-        #     input_tokens = total_input_tokens,
-        #     output_tokens = total_output_tokens
-        # )
 
