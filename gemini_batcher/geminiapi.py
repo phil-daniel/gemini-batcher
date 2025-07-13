@@ -7,7 +7,7 @@ from collections import defaultdict
 from google import genai
 from google.genai import types, errors
 
-from utils.exceptions import GeminiAPIError, GeminiFinishError, MaxOutputTokensExceeded, RateLimitExceeded
+from .utils.exceptions import GeminiAPIError, GeminiFinishError, MaxOutputTokensExceeded, RateLimitExceeded
 
 
 DEFAULT_SYSTEM_PROMPT = """
