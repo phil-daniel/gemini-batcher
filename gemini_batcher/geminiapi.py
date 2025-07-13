@@ -7,6 +7,8 @@ from collections import defaultdict
 from google import genai
 from google.genai import types, errors
 
+from utils.exceptions import GeminiAPIError, GeminiFinishError, MaxOutputTokensExceeded, RateLimitExceeded
+
 
 DEFAULT_SYSTEM_PROMPT = """
     You are an AI assistant tasked with answering questions based on the information provided to you, with each answer being a **single** string in the JSON response.
@@ -117,6 +119,45 @@ class GeminiApi:
             time.sleep(5)
         self.files[filepath] = uploaded_file
         return
+    
+    def make_api_call(
+        self,
+        **kwargs
+    ):
+        # TODO: Other errors to handle - any network problems? Input token limit exceeded
+        try:
+            response = self.client.models.generate_content(**kwargs)
+
+            if response.candidates[0].finish_reason != types.FinishReason.STOP:
+                # If 'finish_reason != STOP' then the token generation did not finish naturally.
+                if response.candidates[0].finish_reason == types.FinishReason.MAX_TOKENS:
+                    # If 'finish_reason == MAX_TOKENS' then token generation ended as the output token limit was exceeded.
+                    logging.info("Token generation finished unnatural as output token limit was exceeded.")
+                    _, output_token_limit = self.get_model_token_limits()
+                    raise MaxOutputTokensExceeded("Token generation finished unnaturally as output token limit was exceeded."
+                                                  f"Limit for the {self.model} model is {output_token_limit}.")
+                else:
+                    # There are various other reasons for token generation to end unnaturally, including 'SAFETY', 'RECITATION', etc...
+                    # A full list of these can be found at https://ai.google.dev/api/generate-content#FinishReason
+                    logging.info(f"Token generation finished unnaturally. The finish reason was {response.candidates[0].finish_reason}")
+                    raise GeminiFinishError(f"Token generation finished unnaturally. The finish reason was {response.candidates[0].finish_reason}")
+                
+        except errors.APIError as e:
+            if e.code == 429:
+                # Error code 429 occurs when API calls to the Gemini model have been rate limited.
+                logging.info(f"API call to Gemini failed due to rate limiting. Error code: {e.code}, error message: {e.message}")
+                raise RateLimitExceeded("API call to Gemini failed due to rate limiting."
+                                        f"Error code: {e.code}, error message: {e.message}")
+            else:
+                # Generic exception for any unidentified error codes.
+                logging.info(f"Error occured during API call to Gemini model. Error code: {e.code}, error message: {e.message}")
+                raise GeminiAPIError("Error occured during API call to Gemini model."
+                                     f"Error code: {e.code}, error message: {e.message}")
+    
+        except Exception as e:
+            logging.info(f"Unidentified error occured during API call. Error details: {e}")
+            raise e
+        return response
 
     def generate_content(
         self,
@@ -164,7 +205,7 @@ class GeminiApi:
         for i in range(max_retries):
             try:
                 # Making the API call to Gemini
-                response = self.client.models.generate_content(
+                response = self.make_api_call(
                     model = self.model,
                     config = config_type,
                     contents = prompt
