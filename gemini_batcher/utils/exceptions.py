@@ -32,4 +32,14 @@ class RateLimitExceeded(GeminiAPIError):
     Exception that is raised when an API call to Gemini returns with the APIError exception (from google.genai) with error code 429.
     This occurs when API calls to the Gemini API have been rate limited.
     """
-    pass
+
+    message : str = None
+    retry_delay : int = None
+    
+    def __init__(
+        self,
+        message : str,
+        retry_delay : int
+    ):
+        self.message = message
+        self.retry_delay = retry_delay
