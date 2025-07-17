@@ -1,0 +1,33 @@
+from google.genai import errors
+
+class ExceptionParser:
+
+    def parse_rate_limiter_error(
+        error : errors.APIError
+    ) -> int:
+        """
+        Parses the content of a 'google.genai.errors.APIError' to retrieve the 'retryDelay' value.
+        This is specifically for when API calls are being ratelimited, which can be identified by the '429' error code.
+
+        Args:
+            - error: The APIError produced during the API call.
+        
+        Returns:
+            - The time delay described in the 'retryDelay' value of the APIError's description in seconds. 5 seconds is also added to provide leeway.
+            If the contents is unable to be parsed, a default delay time of 30 seconds is returned.
+        """
+        try:
+            # If the error code is not 429 (which is caused by rate limiting) then there will be no retry info and the API call can be retried immediately
+            if error.code != 429:
+                return 5
+
+            for detail in error.details['error']['details']:
+                if detail['@type'] == 'type.googleapis.com/google.rpc.RetryInfo':
+                    delay = detail['retryDelay']
+                    # 5 seconds is added to the provided time just in case.
+                    return int(delay[:-1]) + 5
+            
+            # If no value can be found, then a default delay time of 30 seconds is returned. This also occurs if there is an exception.
+            return 30
+        except Exception as e:
+            return 30

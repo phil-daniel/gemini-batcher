@@ -34,6 +34,7 @@ from dotenv import load_dotenv # Used to load environment variables from '.env' 
 
 load_dotenv() # Loading the environment variables from the '.env' file.
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") # Retrieving the 'GEMINI_API_KEY' environment variable.
+client = genai.Client(api_key=GEMINI_API_KEY) # Creates an instance of the Gemini API client, this can be used to make API calls.
 ```
 
 Throughout this documentation, the usage of these techniques is demonstrated by attempting to answer a series of questions based on the transcript of a lecture. The example resources used in these scenarios can be retrieved as follows.

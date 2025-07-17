@@ -1,6 +1,6 @@
 [project]
-name = "gemini-efficient-api-calls"
-version = "0.1.1"
+name = "gemini_batcher"
+version = "0.6.0"
 
 [build-system]
 requires = ["setuptools>=61.0"]
@@ -8,4 +8,4 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["gemini_efficient_api_calls*"]
+include = ["gemini_batcher*"]
