@@ -105,3 +105,39 @@ except errors.APIError as e:
                 break
         time.sleep(time_to_wait)
 ```
+
+### Other common API Errors
+
+TODO: Add common errors here
+
+## Generation Errors
+
+Generation errors occur during when the model is generating its response, examples of this would be when satefy checks trigger or the output token limit is exceeded. In some of these cases, a response to the API call is given, however the response may not be readable or correct. These errors can be identified by checking the `FinishReason` of a response, which tells us why the model stopped generating an output. If this reason is not `STOP` then the model did not finish naturally. More detail about these reasons can be found in the [FinishReason section of the Gemini documentation](https://ai.google.dev/api/generate-content#FinishReason).
+
+### MAX_TOKENS Finish Reason
+
+The `MAX_TOKENS` FinishReason occurs when the output token limit of a model has been reached. Once this limit has been reached then no more output can be given, meaning the model may only provide a portion of an answer. A common reason for this to occur is when too many questions have been batched together.
+
+This error can be identified as follows:
+```python
+from google.genai import types, errors
+
+response = client.models.generate_content(
+    model="gemini-2.5-flash",
+    config=types.GenerateContentConfig(
+        system_instruction=system_prompt,
+        thinking_config=types.ThinkingConfig(thinking_budget=0)
+    ),
+    contents=[f'Content:\n{content}', f'\nQuestion:\n{question}']
+)
+
+if response.candidates[0].finish_reason != types.FinishReason.STOP:
+    # If execution enters this if statement we knnow that token generation finished unnaturally.
+    if response.candidates[0].finish_reason == types.FinishReason.MAX_TOKENS:
+        # If execution enters this if statement we know that token generation finished because the output limit was exceeded.
+    else:
+        # Other logic can be added for other finish reasons
+```
+
+### Other Finish Reasons
+

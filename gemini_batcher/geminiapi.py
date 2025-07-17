@@ -144,7 +144,6 @@ class GeminiApi:
                     raise exceptions.GeminiFinishError(f"Token generation finished unnaturally. The finish reason was {response.candidates[0].finish_reason}")
                 
         except errors.APIError as e:
-            print(e)
             if e.code == 429:
                 # Error code 429 occurs when API calls to the Gemini model have been rate limited.
                 
