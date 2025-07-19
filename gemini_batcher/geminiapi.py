@@ -114,6 +114,7 @@ class GeminiApi:
         self,
         filepath : str,
     ):
+        # TODO: Error handling
         uploaded_file = self.client.files.upload(file=filepath)
         while uploaded_file.state.name == "PROCESSING" or uploaded_file.state.name == "PENDING":
             logging.info(f'Waiting for file {filepath} to upload, current state is {uploaded_file.state.name}')
