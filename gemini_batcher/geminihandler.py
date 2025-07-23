@@ -8,6 +8,8 @@ from .input_handler.textinputs import BaseTextInput
 from .processor.textchunkandbatch import TextChunkAndBatch
 from .processor.mediachunkandbatch import MediaChunkAndBatch
 
+from .utils import exceptions
+
 from .geminiapi import Response, GeminiApi
 
 class GeminiHandler:
@@ -65,7 +67,6 @@ class GeminiHandler:
                     if batch[i] not in answers.keys() and response.content[i] !=  'N/A':
                         answers[batch[i]] = response.content[i]
         
-        # TODO: Better way of returning? Tuple?
         return Response(
             content = answers,
             input_tokens = total_input_tokens,
@@ -80,7 +81,7 @@ class GeminiHandler:
     ) -> Response:
         # A version of generate_content_fixed() that automatically chunks depending on the token limits of the model being used.
         
-        input_token_limit, output_token_limit = self.gemini_api.get_model_token_limits()
+        input_token_limit, _ = self.gemini_api.get_model_token_limits()
 
         total_input_tokens = 0
         total_output_tokens = 0
@@ -105,19 +106,28 @@ class GeminiHandler:
 
             else:
                 query_contents = f'Content:\n{curr_content}\n\nThere are {len(curr_questions)} questions. The questions are:\n' + '\n\t- '.join(curr_questions)
-                response = self.gemini_api.generate_content(query_contents, system_prompt=system_prompt)
-
-                # TODO: This doesn't seem to actually occur, need a better way of doing this, checking if the output limit has been reached
-                if response.output_tokens > output_token_limit:
+                try:
+                    response = self.gemini_api.generate_content(query_contents, system_prompt=system_prompt)
+                except exceptions.MaxOutputTokensExceeded as e:
+                    # If MaxOutputToken is exceeded then we need to split the number of question in each batch by two.
+                    # This will reduce the token size of the output.
                     batched_questions = TextChunkAndBatch.batch_by_number_of_questions(curr_questions, len(curr_questions)//2 + 1)
                     queue.append((curr_content, batched_questions[0]))
                     queue.append((curr_content, batched_questions[1]))
-                else:
-                    for i in range(len(response.content)):
-                        if curr_questions[i] not in answers.keys() and response.content[i] !=  'N/A':
-                            answers[curr_questions[i]] = response.content[i]
-                    total_input_tokens += response.input_tokens
-                    total_output_tokens += response.output_tokens
+                    continue
+                except exceptions.MaxInputTokensExceeded as e:
+                    # This exception should never occur as we already check that the input token limit is not exceeded.
+                    # TODO: Implement
+                    pass
+                except Exception as e:
+                    # TODO: Generic exception handling
+                    raise e
+                    
+                for i in range(len(response.content)):
+                    if curr_questions[i] not in answers.keys() and response.content[i] !=  'N/A':
+                        answers[curr_questions[i]] = response.content[i]
+                total_input_tokens += response.input_tokens
+                total_output_tokens += response.output_tokens
 
         return Response(
             content = answers,

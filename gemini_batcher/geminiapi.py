@@ -228,6 +228,12 @@ class GeminiApi:
                     input_tokens = input_tokens,
                     output_tokens = output_tokens
                 )
+            except exceptions.MaxOutputTokensExceeded as e:
+                # Reraising to be handled by function caller.
+                raise e
+            except exceptions.MaxInputTokensExceeded as e:
+                # Reraising to be handled by function caller.
+                raise e
             except exceptions.RateLimitExceeded as e:
                 # TODO: Is it possible to identify how long we have to way instead of just doing 10 seconds?
                 print(e.retry_delay)
