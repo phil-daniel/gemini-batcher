@@ -26,7 +26,6 @@ class GeminiHandler:
             **kwargs
         )
         
-        
     def generate_content_fixed(
         self,
         content : BaseTextInput,

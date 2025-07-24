@@ -1,6 +1,23 @@
 [project]
 name = "gemini_batcher"
-version = "0.6.0"
+description = "A batching and chunking system for the Python Gemini SDK."
+version = "0.7.0"
+dependencies = [
+  "numpy",
+  "requests",
+  "google-genai",
+  "sentence-transformers",
+  "scikit-learn",
+  "ffmpeg-python"
+]
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+authors = [{ name = "Phillip Daniel" }]
+
+[project.urls]
+Homepage = "https://phil-daniel.github.io/gemini-batcher/"
+Repository = "https://github.com/phil-daniel/gemini-batcher"
 
 [build-system]
 requires = ["setuptools>=61.0"]

@@ -27,10 +27,10 @@ pip install google-generativeai numpy sentence-transformers scikit-learn ffmpeg-
 ```
 
 These packages are used as follows:
-- `google-generativeai` - This is an SDK provided by google which provides access to Google's LLM APIs.
+- `google-genai` - This is an SDK provided by google which provides access to Google's LLM APIs.
 - `numpy` - This is a widely used mathematical library.
 - `sentence-transformers` - This is a python wrapper over Hugging Face's transformers, it provides pretrained models that can be used to compute semantic embeddings of sentences.
-- `scikit-learn` - This is a widely used machine learning library. During this examples we will in particular be using its `consine_similarity` function, which computes can compute the simalarity between different embeddings.
+- `scikit-learn` - This is a widely used machine learning library. During this examples we will in particular be using its `cosine_similarity` function, which computes can compute the simalarity between different embeddings.
 - `ffmpeg-python` - A python wrapper over the FFmpeg CLI, which provides tools for audio and video processing.
 - `python-dotenv` - A package which allows for environment variables to be easily read from `.env` files.
 
@@ -61,6 +61,13 @@ client = genai.Client(api_key=GEMINI_API_KEY) # Creates an instance of the Gemin
 ```
 
 Throughout this documentation, the usage of these techniques is demonstrated by attempting to answer a series of questions based on the transcript of a lecture. The example resources used in these scenarios can be retrieved as follows.
+
+If the `requests` package (which allows for HTTP requests to easily be made) is not yet installed, install it using the following command:
+```
+pip install requests
+```
+
+You can then add the following code block into your code. This retrieves the relevant question and answer set from the GitHub repository.
 
 ```python
 import requests

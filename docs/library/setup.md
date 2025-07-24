@@ -15,6 +15,10 @@ In order to make use of the Gemini models, an API key must first be generated. I
 `GEMINI_API_KEY="<your_key>"`
 It is important that you do not share this key in publicly available code.
 
-## Downloading the Library
+## Library Setup
 
-## Installing Required Packages
+Download the repository and install the package using:
+```
+pip install -e .
+```
+This will install the package in addition to all of its required dependencies.
