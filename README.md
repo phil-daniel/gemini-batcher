@@ -11,8 +11,8 @@ This repository provides code samples, documentation and a code library implemen
 ## Documentation
 
 Documentation for this repository is available on its GitHub Pages site, [here](https://phil-daniel.github.io/gemini-batcher/). It is split into two separate parts, 'Concepts' and 'Library'.
-- The ['Concepts'](https://phil-daniel.github.io/gemini-batcher/concepts/) section explains the techniques used in the library and provides simple code samples for each.
-- The ['Library'](https://phil-daniel.github.io/gemini-batcher/library/) section covers the setup and usage instructions for our implementation of each techniques.
+- The [Concepts](https://phil-daniel.github.io/gemini-batcher/concepts/) section explains the techniques used in the library and provides simple code samples for each.
+- The [Library](https://phil-daniel.github.io/gemini-batcher/library/) section covers the setup and usage instructions for our implementation of each techniques.
 
 ## Library Setup
 
@@ -33,6 +33,8 @@ pip install -e .
 4. Save the API key as an environment variable called `GEMINI_API_KEY`. It is important that you do not share this key in any publicly available code.
     - If you are using Google Colab, save the API key as a secret.
     - If you are developing locally, save it as an environment variable using `export GEMINI_API_KEY=<your_key>`. Alternatively you can store the key in an `.env` file as follows. `GEMINI_API_KEY="<your_key>"`
+
+5. You are free to use the library as required! Documentation can be found [here](https://phil-daniel.github.io/gemini-batcher/library/).
 
 ## Additional Code Samples
 
