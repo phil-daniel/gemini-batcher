@@ -114,6 +114,7 @@ class GeminiApi:
         self,
         filepath : str,
     ):
+        # TODO: Error handling
         uploaded_file = self.client.files.upload(file=filepath)
         while uploaded_file.state.name == "PROCESSING" or uploaded_file.state.name == "PENDING":
             logging.info(f'Waiting for file {filepath} to upload, current state is {uploaded_file.state.name}')
@@ -227,6 +228,12 @@ class GeminiApi:
                     input_tokens = input_tokens,
                     output_tokens = output_tokens
                 )
+            except exceptions.MaxOutputTokensExceeded as e:
+                # Reraising to be handled by function caller.
+                raise e
+            except exceptions.MaxInputTokensExceeded as e:
+                # Reraising to be handled by function caller.
+                raise e
             except exceptions.RateLimitExceeded as e:
                 # TODO: Is it possible to identify how long we have to way instead of just doing 10 seconds?
                 print(e.retry_delay)
