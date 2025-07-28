@@ -92,5 +92,21 @@ while len(queue) > 0:
     # Add logic for handling valid responses here...
 ```
 
+TODO: Add visualisation of this process
 
-## Semantic Chunking and Batchingz
+
+## Semantic Chunking and Batching
+
+### Semantic Chunking
+
+Up until now, all of the chunking techniques discussed have broken up the content purely based on its length rather than considering the meaning and structure of the content itself.
+
+Semantic chunking takes a different approach, instead of breaking up the text arbitrarily, content is split at meaningful boundaries, such as topic shifts.
+
+TODO: Add code sample
+
+### Semantic Batching
+
+We can continue with the semantic approach by also batching questions based on their meanings. There are two main approaches to this, questions can be batched together based on their similarity to one another, or questions can be batched to chunks based on their similarity to the chunk's contents. The code required to complete both of these techniques is very similar to that shown in the semantic chunking.
+
+TODO: Add code
