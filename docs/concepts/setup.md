@@ -22,8 +22,6 @@ Gemini API are classed as either non-billed (free) and billed (paid), with bille
 - [Rate Limits](https://ai.google.dev/gemini-api/docs/rate-limits)
 - [Billing & Upgrading](https://ai.google.dev/gemini-api/docs/billing)
 
-### TODO: Mention changing the type of API key (billed/non-billed) 
-
 ## Package Installation
 
 The code samples in this guide require various python libraries, which can all be installed using the following command:
