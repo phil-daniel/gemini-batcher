@@ -25,6 +25,12 @@ class GeminiHandler:
             model=model,
             **kwargs
         )
+    
+    def change_model(
+        self,
+        model_name : str
+    ):
+        self.model = model_name
         
     def generate_content_fixed(
         self,

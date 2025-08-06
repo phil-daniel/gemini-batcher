@@ -1,7 +1,7 @@
 [project]
-name = "gemini_batcher"
+name = "gemini-batcher"
 description = "A batching and chunking system for the Python Gemini SDK."
-version = "0.7.0"
+version = "0.9.0"
 dependencies = [
   "numpy",
   "requests",
