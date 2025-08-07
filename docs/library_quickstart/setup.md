@@ -1,7 +1,7 @@
 ---
 title: Setup
 nav_order: 6
-parent: Library
+parent: Library Quickstart
 ---
 
 # Setup

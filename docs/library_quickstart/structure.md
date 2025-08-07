@@ -1,7 +1,7 @@
 ---
 title: Library Structure
 nav_order: 20
-parent: Library
+parent: Library Quickstart
 ---
 
 # Library Structure

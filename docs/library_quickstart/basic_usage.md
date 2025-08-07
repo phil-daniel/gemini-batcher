@@ -1,7 +1,7 @@
 ---
 title: Basic Usage
 nav_order: 7
-parent: Library
+parent: Library Quickstart
 ---
 
 # Basic Usage

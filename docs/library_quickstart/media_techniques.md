@@ -1,7 +1,7 @@
 ---
 title: Media Techniques
 nav_order: 10
-parent: Library
+parent: Library Quickstart
 ---
 
 # Media Techniques

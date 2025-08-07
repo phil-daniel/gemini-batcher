@@ -1,7 +1,7 @@
 ---
 title: Inputs
 nav_order: 8
-parent: Library
+parent: Library Quickstart
 ---
 
 # Inputs
