@@ -56,7 +56,9 @@ response = client.models.generate_content(
 
 ## Transcript-based Chunking
 
-TODO: Add how we can generate a transcript
+There are various ways of generating a transcript from an audio or video file. Both Google and OpenAI provide specific models, Speech-to-Text AI and Whisper, respectively. However the Gemini models also perform well when transcribing videos, this makes it very easy to generate a transcript by making a query to the Gemini API.
+
+TODO Code sample.
 
 ## Other Chunking Methods
 

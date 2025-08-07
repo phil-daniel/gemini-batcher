@@ -8,7 +8,7 @@ from google import genai
 from google.genai import types, errors
 
 from .utils import exceptions
-from .utils.exception_parser import ExceptionParser
+from .utils.exceptionparser import ExceptionParser
 
 
 DEFAULT_SYSTEM_PROMPT = """

@@ -30,7 +30,6 @@ if input_tokens_required > input_token_limit:
 
 - Check whether the output token limit has been exceeded. It is important to note that we can not predict this before making the API call, and intead have to make the API call and then check whether it succeeded. This is discussed more in the [Error Handling section](https://phil-daniel.github.io/gemini-batcher/concepts/error_handling.html#max_tokens-finish-reason) of this guide.
 ```python
-# Making the API call to Gemini
 response = client.models.generate_content(
     model="gemini-2.5-flash",
     config=types.GenerateContentConfig(

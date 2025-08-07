@@ -8,27 +8,30 @@ parent: Concepts
 
 Many of the code samples throughout this guide require additional python libraries and boilerplate code to use. Instructions to set this up can be found below.
 
-## API Key Setup
+## API Key Setup
 
-In order to make use of the Gemini models, an API key must first be generated. Instructions for generating an API key can be found below, taking notes from [Patrick Loeber's Build with Gemini Workshop](https://github.com/patrickloeber/workshop-build-with-gemini/tree/main).
+In order to make use of the Gemini models, an API key must first be generated. Instructions for generating an API key can be found below and more detail can be found at [Patrick Loeber's Build with Gemini Workshop](https://github.com/patrickloeber/workshop-build-with-gemini/tree/main).
 
 1. Visit [Google AI Studio](https://aistudio.google.com/apikey) to create or retrieve an API key.
 2. Copy the API Key and save it called `GEMINI_API_KEY` for use in your project. In Google Colab this can be saved as a secret or in local development it can be saved as an environment variable using `export GEMINI_API_KEY=<your_key>`. In this guide the key is stored in a `.env` file as follows:
 `GEMINI_API_KEY="<your_key>"`
 It is important that you do not share this key in publicly available code.
 
-### TODO: Mention changing the type of API key (billed/non-billed) 
+Gemini API are classed as either non-billed (free) and billed (paid), with billed API keys allowing higher usage limits and access to additional features. For smaller projects a non-billed API key may suffice however for larger projects it may benefit from a billed API key to accomodate increased usage. More information about billed API keys can be found at the following links:
+- [Pricing](https://ai.google.dev/gemini-api/docs/pricing)
+- [Rate Limits](https://ai.google.dev/gemini-api/docs/rate-limits)
+- [Billing & Upgrading](https://ai.google.dev/gemini-api/docs/billing)
 
 ## Package Installation
 
 The code samples in this guide require various python libraries, which can all be installed using the following command:
 ```
-pip install google-generativeai numpy sentence-transformers scikit-learn ffmpeg-python python-dotenv
+pip install google-genai numpy sentence-transformers scikit-learn ffmpeg-python python-dotenv
 ```
 
 These packages are used as follows:
 - `google-genai` - This is an SDK provided by google which provides access to Google's LLM APIs.
-- `numpy` - This is a widely used mathematical library.
+- `numpy` - This is a widely used mathematical library that provides useful numerical operations for vectors, arrays and matrices.
 - `sentence-transformers` - This is a python wrapper over Hugging Face's transformers, it provides pretrained models that can be used to compute semantic embeddings of sentences.
 - `scikit-learn` - This is a widely used machine learning library. During this examples we will in particular be using its `cosine_similarity` function, which computes can compute the simalarity between different embeddings.
 - `ffmpeg-python` - A python wrapper over the FFmpeg CLI, which provides tools for audio and video processing.
@@ -49,11 +52,11 @@ from google import genai
 from google.genai import types
 
 # Third-party libraries
-import numpy as np # Provides useful numerical opertions for vectors, arrays and matrices.
-from sentence_transformers import SentenceTransformer # Provides transformer models to calculate vector embeddings for text.
-from sklearn.metrics.pairwise import cosine_similarity # Used for computing the similarity of vectors.
-import ffmpeg # A wrapper library for the FFmpeg CLI used for audio & video processing.
-from dotenv import load_dotenv # Used to load environment variables from '.env' files.
+import numpy as np
+from sentence_transformers import SentenceTransformer
+from sklearn.metrics.pairwise import cosine_similarity
+import ffmpeg
+from dotenv import load_dotenv
 
 load_dotenv() # Loading the environment variables from the '.env' file.
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") # Retrieving the 'GEMINI_API_KEY' environment variable.
