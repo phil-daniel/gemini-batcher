@@ -16,7 +16,7 @@ TODO: Add example video which can be downloaded similar to the text files.
 
 In this code sample, the input video file is chunked into multiple 100 second clips, each of which overlaps by 10 seconds using a sliding window
 ```python
-input_file_path = "TODO"
+input_file_path = "path/to/media/file"
 
 chunk_duration = 100 # The duration (in seconds) of each chunk.
 window_duration = 10 # The duration (in seconds) of the sliding window.
@@ -56,9 +56,30 @@ response = client.models.generate_content(
 
 ## Transcript-based Chunking
 
-There are various ways of generating a transcript from an audio or video file. Both Google and OpenAI provide specific models, Speech-to-Text AI and Whisper, respectively. However the Gemini models also perform well when transcribing videos, this makes it very easy to generate a transcript by making a query to the Gemini API.
+There are several models which are designed to generate a transcript from an audio or video file. Two of the most prominent options are Google's Speech-to-Text AI and OpenAI's Whisper, which are both dedicated to this task. However, the Gemini family of models also perform well when transcribing videos, which can be done by simply uploading the file and asking Gemini to create a transcript. This can be done as follows
 
-TODO Code sample.
+# TODO: Improve to JSON response.
+
+```python
+input_file_path = "path/to/media/file.mp3"
+uploaded_file = client.files.upload(file=input_file_path) # Uploading the file to Gemini
+
+# It can take time for the file to be uploaded, so we busy wait until it is available.
+while uploaded_file.state.name == "PROCESSING" or uploaded_file.state.name == "PENDING":
+    logging.info(f'Waiting for file {filepath} to upload, current state is {uploaded_file.state.name}')
+    time.sleep(5)
+
+# We also get the start time of each sentence to allow us to chunk sentences later on.
+response = client.models.generate_content(
+    model="gemini-2.5-flash",
+    contents=["Create a transcript of the provided media, in the format of: start time of sentence in seconds, caption.", uploaded_file]
+)
+```
+
+Using a Gemini model for transcription allows for us to maintain consistency in our choice of model throughout the entire library. It is also recommended to extract the audio from video files (such as `.mp4`) and only submit this audio to the model rather than the entire file. This significantly reduces the file size, which in turn also reduces the token usage and processing efficiency.
+
+Once a transcript of a file has been produced, it is then possible to use the various text-based chunking methods, such as fixed and semantic chunking. Once the chunks have been determined, the timestamps of each chunk can be found using the transcript and the media file can be trimmed into chunks which are then uploaded to model as shown in the duration chunking section.
+
 
 ## Other Chunking Methods
 

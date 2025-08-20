@@ -33,9 +33,6 @@ class RateLimitExceeded(GeminiAPIError):
     This occurs when API calls to the Gemini API have been rate limited.
     """
 
-    message : str = None
-    retry_delay : int = None
-    
     def __init__(
         self,
         message : str,

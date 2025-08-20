@@ -65,16 +65,9 @@ client = genai.Client(api_key=GEMINI_API_KEY) # Creates an instance of the Gemin
 
 Throughout this documentation, the usage of these techniques is demonstrated by attempting to answer a series of questions based on the transcript of a lecture. The example resources used in these scenarios can be retrieved as follows.
 
-If the `requests` package (which allows for HTTP requests to easily be made) is not yet installed, install it using the following command:
-```
-pip install requests
-```
-
-You can then add the following code block into your code. This retrieves the relevant question and answer set from the GitHub repository.
-
 ```python
 import requests
 
 questions = requests.get("https://raw.githubusercontent.com/phil-daniel/gemini-batcher/blob/main/examples/demo_files/questions.txt").text.split('\n')
-answers = requests.get("https://raw.githubusercontent.com/phil-daniel/gemini-batcher/blob/main/examples/demo_files/content.txt").text
+content = requests.get("https://raw.githubusercontent.com/phil-daniel/gemini-batcher/blob/main/examples/demo_files/content.txt").text
 ```

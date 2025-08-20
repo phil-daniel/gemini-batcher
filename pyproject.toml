@@ -8,7 +8,8 @@ dependencies = [
   "google-genai",
   "sentence-transformers",
   "scikit-learn",
-  "ffmpeg-python"
+  "ffmpeg-python",
+  "tempfile",
 ]
 readme = "README.md"
 requires-python = ">=3.8"

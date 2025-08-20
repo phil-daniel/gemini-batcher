@@ -14,7 +14,11 @@ Returning to our example, where we have a large transcript and a list of questio
 
 When using a billed API key, where token usage is charged, the cost savings gained from using caching are also passed on to the user and can help reduce the cost of API calls containing repeated content. more information about the cost savings can be found [here](https://ai.google.dev/gemini-api/docs/caching?lang=python#cost-efficiency).
 
+## Caching with Gemini
+
 The Gemini family of models provide two methods of caching, 'implicit caching' and 'explicit caching'. This guide will give a quick overview of the two methods, with more detail available in the [Gemini Context Caching Documentation](https://ai.google.dev/gemini-api/docs/caching?lang=python).
+
+### Implicit Caching
 
 Implicit caching is enabled by default and works automatically, however to increase the likelihood of cache hits occuring, similar prompts should be made within a short period of time, with the common cotents at the beginning of each prompt. It is possible to check how successful the implicit caching has been by using the `usage_metadata` field of the API response, an example of this is shown below. The same code can be used for explicit caching, which is discussed later.
 
@@ -29,6 +33,8 @@ print(f'Total input tokens: {response.usage_metadata.prompt_token_count}')
 print(f'Total input tokens from cache: {response.usage_metadata.cached_content_token_count}')
 ```
 The interactive notebook linked above also provides a more detailed demonstration that compared the token usage of uncached and cached API calls.
+
+## Explicit Caching
 
 Explicit caching on the other hand has to be completed manually. In this case, content is uploaded to the model and saved in a cache, with a link to the cache then being passed to the model during API queries. This can be done as follows:
 
