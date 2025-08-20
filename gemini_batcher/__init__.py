@@ -1,8 +1,8 @@
-from .geminihandler import GeminiHandler
-from .geminiapi import GeminiApi
-from .input_handler.textinputs import BaseTextInput, FileInput, WebsiteInput
-from .processor.textchunkandbatch import TextChunkAndBatch
-from .processor.mediachunkandbatch import MediaChunkAndBatch
+from .gemini_handler import GeminiHandler
+from .gemini_functions.gemini_api import GeminiApi
+from .input_handler.text_inputs import BaseTextInput, FileInput, WebsiteInput
+from .processor.text_chunk_and_batch import TextChunkAndBatch
+from .processor.media_chunk_and_batch import MediaChunkAndBatch
 from .utils.exceptions import GeminiBatcherError, GeminiAPIError, GeminiFinishError, MaxOutputTokensExceeded, MaxInputTokensExceeded, RateLimitExceeded
 
 __version__ = "0.9.0"
