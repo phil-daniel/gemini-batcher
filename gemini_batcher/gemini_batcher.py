@@ -142,7 +142,7 @@ class GeminiBatcher:
             
             for i in range(len(chunks)):
                 previous_context = ""
-                if config.use_previous_repsonses_for_context:
+                if config.use_previous_responses_for_context:
                     previous_context_response = self._generate_summary_of_previous_answers(
                         config=config,
                         current_response=response
@@ -222,7 +222,7 @@ class GeminiBatcher:
 
         for i in range(len(chunks)):
             previous_context = ""
-            if config.use_previous_repsonses_for_context:
+            if config.use_previous_responses_for_context:
                 previous_context_response = self._generate_summary_of_previous_answers(
                     config=config,
                     current_response=response

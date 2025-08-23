@@ -25,6 +25,12 @@ class Response:
         self,
         internal_response : InternalResponse
     ) -> None:
+        """
+        Merges an InternalRepsonse object into the current Response, updating each of the Response fields contained within the InternalResponse.
+
+        Args:
+            internal_response (InternalResponse): The InternalResponse object containing the information to merge.
+        """
         if len(self.content.keys()) == 0:
             self.content = internal_response.content
         else:
@@ -37,6 +43,12 @@ class Response:
         self,
         internal_response : InternalResponse
     ) -> None:
+        """
+        Merges the token information contained within an InternalRepsonse object into the current Response.
+
+        Args:
+            internal_response (InternalResponse): The InternalResponse object containing the information to merge.
+        """
         self.input_tokens += internal_response.input_tokens
         self.output_tokens += internal_response.output_tokens
         return

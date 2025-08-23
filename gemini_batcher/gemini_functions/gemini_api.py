@@ -8,7 +8,6 @@ from dataclasses import dataclass
 
 from google import genai
 from google.genai import types, errors
-from google.genai.chats import Chat
 
 from ..utils import exceptions
 from ..utils.exception_parser import ExceptionParser
