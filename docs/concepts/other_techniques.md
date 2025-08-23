@@ -121,16 +121,16 @@ for i in range(len(sentence_embeddings) - 1):
     similarity = cosine_similarity(s1, s2)[0][0]
     similarities.append(similarity)
 
-# Calculating a threashold value for cosine similarity.
+# Calculating a threshold value for cosine similarity.
 mean = np.mean(similarities)
 std_dev = np.std(similarities)
-similarity_threashold = mean - (std_dev * threashold_factor)
+similarity_threshold = mean - (std_dev * threshold_factor)
 
 boundaries = [0]
 current_chunk_start_pos = 0
 for i in range(len(similarities)):
     # Checking if there is a natural boundary.
-    if similarities[i] < similarity_threashold and (i + 1) - current_chunk_start_pos >= min_sentences_per_chunk:
+    if similarities[i] < similarity_threshold and (i + 1) - current_chunk_start_pos >= min_sentences_per_chunk:
         boundaries.append(i+1)
         current_chunk_start_pos = i + 1
     elif (i+1) - current_chunk_start_pos >= max_sentences_per_chunk:

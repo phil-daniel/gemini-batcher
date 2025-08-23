@@ -168,7 +168,6 @@ class GeminiApi:
         model,
         **kwargs
     ):
-        # TODO: Other errors to handle - any network problems? Input token limit exceeded
         try:
             response = self.client.models.generate_content(model=model, **kwargs)
 
@@ -219,9 +218,7 @@ class GeminiApi:
         max_retries : int = 5,
         content_config : types.GenerateContentConfig = None
     ) -> InternalResponse:
-        # TODO: Check input tokens are below limits.
-        # TODO: Improve retry if API failure occurs
-        
+
         if len(files) != 0:
             prompt = [prompt]
             for file in files:
@@ -283,52 +280,3 @@ class GeminiApi:
             input_tokens = 0,
             output_tokens = 0
         )
-    
-    def multi_turn_conversation(
-        self,
-        model : str,
-        prompt : str,
-        gemini_chat : Chat = None,
-        files : list[str] = [],
-        cache_name : str = None,
-        system_prompt : str = None,
-        max_retries : int = 5,
-    ):
-        
-        # If no chat is provided a new one is created. This chat is returned along with the response allowing for it
-        # to be reused.
-        if gemini_chat == None:
-            gemini_chat = self.client.chats.create(
-                model=model
-            )
-                
-        if len(files) != 0:
-            prompt = [prompt]
-            for file in files:
-                if file in self.files.keys():
-                    uploaded_file = self.files[file]
-                else:
-                    # TODO: Error handling if the file does not exist.
-                    self.upload_file(file)
-                    uploaded_file = self.files[file]
-                prompt.append(uploaded_file)
-
-        # TODO: Can this be simplified to just being 'cached_content = None'
-        # Adding the cache to the config where neccessary
-        if cache_name == None:
-            config_type = types.GenerateContentConfig(
-                response_mime_type = "application/json",
-                response_schema = list[str],
-                system_instruction = system_prompt,
-            )
-        else:
-            config_type = types.GenerateContentConfig(
-                response_mime_type = "application/json",
-                response_schema = list[str],
-                system_instruction = system_prompt,
-                cached_content = self.cache[cache_name]
-            )
-
-        return _, gemini_chat
-
-

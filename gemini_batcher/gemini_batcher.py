@@ -183,7 +183,7 @@ class GeminiBatcher:
                     text_input=content,
                     min_sentences_per_chunk=chunking_strategy.min_sentences_per_chunk,
                     max_sentences_per_chunk=chunking_strategy.max_sentences_per_chunk,
-                    threshold_factor=chunking_strategy.similarity_threashold_factor,
+                    threshold_factor=chunking_strategy.similarity_threshold_factor,
                     transformer_model=chunking_strategy.transformer_model
                 )
             case TextTokenAwareChunkingAndBatching():

@@ -97,16 +97,16 @@ class TextChunkAndBatch():
             similarity = cosine_similarity(s1, s2)[0][0]
             similarities.append(similarity)
         
-        # TODO: Testing using a dynamic threashold, could also try just using a fixed value.
+        # TODO: Testing using a dynamic threshold, could also try just using a fixed value.
         mean = np.mean(similarities)
         std_dev = np.std(similarities)
-        similarity_threashold = mean - (std_dev * threshold_factor)
+        similarity_threshold = mean - (std_dev * threshold_factor)
 
         boundaries = [0]
         current_chunk_start_pos = 0
         for i in range(len(similarities)):
             # Checking if there is a natural boundary.
-            if similarities[i] < similarity_threashold and (i + 1) - current_chunk_start_pos >= min_sentences_per_chunk:
+            if similarities[i] < similarity_threshold and (i + 1) - current_chunk_start_pos >= min_sentences_per_chunk:
                 boundaries.append(i+1)
                 current_chunk_start_pos = i + 1
             elif (i+1) - current_chunk_start_pos >= max_sentences_per_chunk:
@@ -168,7 +168,7 @@ class TextChunkAndBatch():
         questions : list[str],
         min_sentences_per_chunk : int = 5,
         max_sentences_per_chunk : int = 20,
-        threashold_factor : float = 0.5,
+        threshold_factor : float = 0.5,
         transformer_model : str = 'all-MiniLM-L6-v2'
     ) -> tuple[list[str], list[list[str]]]:
         """
@@ -180,8 +180,8 @@ class TextChunkAndBatch():
             questions (list[str]): The list of questions to be batched.
             min_sentences_per_chunk (int): The minimum number of sentences within each chunk.
             max_sentences_per_chunk (int): The maximum number of sentences within each chunk.
-            threashold_factor (float, optional) : The factor used to decide whether two consecutive sentences are similar enough,
-              must be within mean-(std_dev*threashold_factor)
+            threshold_factor (float, optional) : The factor used to decide whether two consecutive sentences are similar enough,
+              must be within mean-(std_dev*threshold_factor)
             transformer_model (str, optional): The SentenceTransformer model used to create sentence embeddings.
 
         Output:
@@ -195,7 +195,7 @@ class TextChunkAndBatch():
             text_input = text_input,
             min_sentences_per_chunk = min_sentences_per_chunk,
             max_sentences_per_chunk = max_sentences_per_chunk,
-            threashold_factor = threashold_factor,
+            threshold_factor = threshold_factor,
             transformer_model = transformer_model
         )
 
