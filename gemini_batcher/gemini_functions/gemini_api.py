@@ -14,9 +14,9 @@ from ..utils import exceptions
 from ..utils.exception_parser import ExceptionParser
 
 @dataclass
-class Response:
+class InternalResponse:
     """
-    Represents the response from an API call to a Gemini model, this is a slightly simplified response with less attributes.
+    Represents the response from an API call to a Gemini model, this is a slightly simplified InternalResponse with less attributes.
 
     Attributes:
         content (Any): The contents of the response, the exact type could depend on the specific API call.
@@ -165,12 +165,12 @@ class GeminiApi:
 
     def make_api_call(
         self,
-        model : str,
+        model,
         **kwargs
     ):
         # TODO: Other errors to handle - any network problems? Input token limit exceeded
         try:
-            response = self.client.models.generate_content(**kwargs)
+            response = self.client.models.generate_content(model=model, **kwargs)
 
             if response.candidates[0].finish_reason != types.FinishReason.STOP:
                 # If 'finish_reason != STOP' then the token generation did not finish naturally.
@@ -218,7 +218,7 @@ class GeminiApi:
         system_prompt : str = None,
         max_retries : int = 5,
         content_config : types.GenerateContentConfig = None
-    ) -> Response:
+    ) -> InternalResponse:
         # TODO: Check input tokens are below limits.
         # TODO: Improve retry if API failure occurs
         
@@ -256,7 +256,7 @@ class GeminiApi:
                 input_tokens = response.usage_metadata.prompt_token_count
                 output_tokens = response.usage_metadata.candidates_token_count
 
-                return Response(
+                return InternalResponse(
                     content = self.parse_json(response.text),
                     input_tokens = input_tokens,
                     output_tokens = output_tokens
@@ -278,7 +278,7 @@ class GeminiApi:
                 continue
         
         # TODO: Handle failure better
-        return Response(
+        return InternalResponse(
             content = [],
             input_tokens = 0,
             output_tokens = 0
