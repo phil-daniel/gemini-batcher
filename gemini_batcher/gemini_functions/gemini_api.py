@@ -13,15 +13,6 @@ from google.genai.chats import Chat
 from ..utils import exceptions
 from ..utils.exception_parser import ExceptionParser
 
-DEFAULT_SYSTEM_PROMPT = """
-    You are an AI assistant tasked with answering questions based on the information provided to you, with each answer being a **single** string in the JSON response.
-    There should be the **exactly** same number of answers as inputted questions, no more, no less.
-    * **Accuracy and Precision:** Provide direct, factual answers. **Do not** create or merge any of the questions.
-    * **Source Constraint:** Use *only* information explicitly present in the transcript. Do not infer, speculate, or bring in outside knowledge.
-    * **Completeness:** Ensure each answer fully addresses the question, *to the extent possible with the given transcript*.
-    * **Missing Information:** If the information required to answer a question is not discussed or cannot be directly derived from the transcript, respond with "N/A".
-"""
-
 @dataclass
 class Response:
     """
@@ -42,7 +33,6 @@ class GeminiApi:
     def __init__(
         self,
         api_key : str,
-        model : str,
         **kwargs
     ) -> None:
         # TODO: Error handling - Api key not correct
@@ -50,9 +40,6 @@ class GeminiApi:
 
         self.cache = defaultdict(lambda : None)
         self.files = defaultdict(lambda : None)
-
-        # Error handling - Model not correct, default to a model
-        self.model = model
     
     def parse_json(
         self,
@@ -78,15 +65,19 @@ class GeminiApi:
         return parsed
     
     def get_model_token_limits(
-        self
+        self,
+        model : str
     ) -> tuple[int, int]:
         """
         Retrieves the input and output token limit of the current model.
+
+        Args:
+            model (str): The name of the Gemini model.
         
         Returns:
             tuple[int, int]: A tuple, where the first element is the maximum number of input tokens and the second element is the maximum number of output tokens.
         """
-        model_info = self.client.models.get(model=self.model)
+        model_info = self.client.models.get(model=model)
         input_token_limit = model_info.input_token_limit
         output_token_limit = model_info.output_token_limit
 
@@ -94,12 +85,14 @@ class GeminiApi:
 
     def count_tokens(
             self,
+            model : str,
             contents : Any
         ) -> int:
         """
         Returns the number of tokens a content block contains.
 
         Args:
+            model (str): The name of the Gemini model.
             contents (Any): The content to be tokenised and counted.
         
         Returns:
@@ -107,12 +100,13 @@ class GeminiApi:
         """
 
         return self.client.models.count_tokens(
-            model=self.model,
+            model=model,
             contents = contents
         )
 
     def add_to_cache(
         self,
+        model : str,
         filepath : str,
         cache_name : str = None,
         ttl : int = 300,
@@ -131,7 +125,7 @@ class GeminiApi:
 
         # Adding the file to the cache
         cached_file = self.client.caches.create(
-            model = self.model,
+            model = model,
             config = types.CreateCachedContentConfig(
                 display_name = cache_name,
                 contents = [uploaded_file],
@@ -171,6 +165,7 @@ class GeminiApi:
 
     def make_api_call(
         self,
+        model : str,
         **kwargs
     ):
         # TODO: Other errors to handle - any network problems? Input token limit exceeded
@@ -182,9 +177,9 @@ class GeminiApi:
                 if response.candidates[0].finish_reason == types.FinishReason.MAX_TOKENS:
                     # If 'finish_reason == MAX_TOKENS' then token generation ended as the output token limit was exceeded.
                     logging.error("Token generation finished unnatural as output token limit was exceeded.")
-                    _, output_token_limit = self.get_model_token_limits()
+                    _, output_token_limit = self.get_model_token_limits(model)
                     raise exceptions.MaxOutputTokensExceeded("Token generation finished unnaturally as output token limit was exceeded. "
-                                                  f"Limit for the {self.model} model is {output_token_limit}.")
+                                                  f"Limit for the {model} model is {output_token_limit}.")
                 else:
                     # There are various other reasons for token generation to end unnaturally, including 'SAFETY', 'RECITATION', etc...
                     # A full list of these can be found at https://ai.google.dev/api/generate-content#FinishReason
@@ -216,6 +211,7 @@ class GeminiApi:
 
     def generate_content(
         self,
+        model : str,
         prompt : str,
         files : list[str] = [],
         cache_name : str = None,
@@ -225,10 +221,6 @@ class GeminiApi:
     ) -> Response:
         # TODO: Check input tokens are below limits.
         # TODO: Improve retry if API failure occurs
-
-        # Adding default system prompt if one is not given.
-        if system_prompt == None:
-            system_prompt = DEFAULT_SYSTEM_PROMPT
         
         if len(files) != 0:
             prompt = [prompt]
@@ -255,7 +247,7 @@ class GeminiApi:
             try:
                 # Making the API call to Gemini
                 response = self.make_api_call(
-                    model = self.model,
+                    model = model,
                     config = content_config,
                     contents = prompt
                 )
@@ -294,6 +286,7 @@ class GeminiApi:
     
     def multi_turn_conversation(
         self,
+        model : str,
         prompt : str,
         gemini_chat : Chat = None,
         files : list[str] = [],
@@ -306,7 +299,7 @@ class GeminiApi:
         # to be reused.
         if gemini_chat == None:
             gemini_chat = self.client.chats.create(
-                model=self.model
+                model=model
             )
                 
         if len(files) != 0:

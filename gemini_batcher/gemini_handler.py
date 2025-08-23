@@ -1,7 +1,6 @@
 import logging
 from typing import Any
 import os
-from enum import Enum, auto
 import tempfile
 
 from .input_handler.text_inputs import BaseInput, BaseTextInput
@@ -24,31 +23,35 @@ from .gemini_functions.gemini_api import Response, GeminiApi
 class GeminiHandler:
 
     gemini_api : GeminiApi
+    config : GeminiApi
 
     def __init__(
         self,
-        api_key : str,
-        model : str,
-        **kwargs
+        config : GeminiConfig
     ) -> None:
+        self.config = config
         self.gemini_api = GeminiApi(
-            api_key=api_key,
-            model=model,
-            **kwargs
+            api_key=config.api_key,
         )
+        # TODO: ADD **kwargs back
 
     def generate_content(
         self,
-        config : GeminiConfig,
         content : BaseInput,
         questions : list[str],
         chunking_technique : BaseStrategy,
-        batching_technique : BaseStrategy
+        batching_technique : BaseStrategy,
+        config : GeminiConfig = None
     ) -> Response:
+        # Updating the config if it has been changed
+        if config != None:
+            self.config = config
+
         # Choosing the method to use based on the content type.
         match content:
             case BaseTextInput():
                 return self._generate_content_from_text(
+                    config,
                     content,
                     questions,
                     chunking_technique,
@@ -56,6 +59,7 @@ class GeminiHandler:
                 )
             case _:
                 return self._generate_content_from_media(
+                    config,
                     content,
                     questions,
                     chunking_technique,
@@ -65,6 +69,7 @@ class GeminiHandler:
     
     def _generate_content_from_media(
         self,
+        config : GeminiConfig,
         content : VideoFileInput,
         questions : list[str],
         chunking_technique : BaseStrategy,
@@ -80,6 +85,7 @@ class GeminiHandler:
                     _, sentences = MediaChunkAndBatch.generate_transcript(content)
                     text_content = BaseTextInput(" ".join(sentences))
                     return self._generate_content_from_text(
+                        config=config,
                         content=text_content,
                         questions=questions,
                         chunking_technique=chunking_technique,
@@ -94,6 +100,7 @@ class GeminiHandler:
                     )
                 case media_chunking_strategies.SemanticChunking:
                     chunks, chunk_transcripts = MediaChunkAndBatch.chunk_semantically(
+                        config,
                         content,
                         temp_dir,
                         self.gemini_api,
@@ -131,6 +138,7 @@ class GeminiHandler:
             for i in range(len(chunks)):
                 partial_responses.append(
                     self._handle_single_media_chunk_and_batch(
+                        config,
                         chunks[i],
                         batches[i],
                     )
@@ -141,6 +149,7 @@ class GeminiHandler:
         
     def _generate_content_from_text(
         self,
+        config : GeminiConfig,
         content : BaseTextInput,
         questions : list[str],
         chunking_technique : BaseStrategy,
@@ -196,6 +205,7 @@ class GeminiHandler:
         for i in range(len(chunks)):
             partial_responses.append(
                 self._handle_single_text_chunk_and_batch(
+                    config,
                     chunks[i],
                     batches[i],
                 )
@@ -206,10 +216,9 @@ class GeminiHandler:
 
     def _handle_single_media_chunk_and_batch(
         self,
+        config : GeminiConfig,
         chunk_filepath : str,
         question_batches : DynamicBatch,
-        system_prompt : str = None,
-        use_explicit_caching : bool = False
     ) -> Response:
         # TODO: Add explicit caching stuff.
         answers = {}
@@ -220,14 +229,24 @@ class GeminiHandler:
         while len(batch) > 0:
             query_contents = f'Content:\nThe content has been attached as a file.\n\nThere are {len(batch)} questions. The questions are:\n' + '\n\t- '.join(batch)
             
-            if use_explicit_caching:
+            if config.use_explicit_caching:
                 if chunk_filepath not in self.gemini_api.cache.keys():
                     self.gemini_api.add_to_cache(chunk_filepath)
-                response = self.gemini_api.generate_content(query_contents, system_prompt=system_prompt, cache_name=chunk)
+                response = self.gemini_api.generate_content(
+                    config.model,
+                    query_contents,
+                    system_prompt=config.system_prompt,
+                    cache_name=chunk_filepath
+                )
             else:
                 if chunk_filepath not in self.gemini_api.files.keys():
                     self.gemini_api.upload_file(chunk_filepath)
-                response = self.gemini_api.generate_content(query_contents, system_prompt=system_prompt, files=[chunk])
+                response = self.gemini_api.generate_content(
+                    config.model,
+                    query_contents,
+                    system_prompt=config.system_prompt,
+                    files=[chunk_filepath]
+                )
 
             total_input_tokens += response.input_tokens
             total_output_tokens += response.output_tokens
@@ -246,9 +265,9 @@ class GeminiHandler:
     
     def _handle_single_text_chunk_and_batch(
         self,
+        config : GeminiConfig,
         chunk : str,
         question_batches : DynamicBatch,
-        system_prompt : str = None,
     ) -> Response:
         answers = {}
         total_input_tokens = 0
@@ -257,7 +276,11 @@ class GeminiHandler:
         batch = question_batches.get_question_batch()
         while len(batch) > 0:
             query_contents = f'Content:\n{chunk}\n\nThere are {len(batch)} questions. The questions are:\n' + '\n\t- '.join(batch)
-            response = self.gemini_api.generate_content(query_contents, system_prompt=system_prompt)
+            response = self.gemini_api.generate_content(
+                config.model,
+                query_contents,
+                system_prompt=config.system_prompt
+            )
 
             total_input_tokens += response.input_tokens
             total_output_tokens += response.output_tokens
@@ -294,13 +317,13 @@ class GeminiHandler:
     
     def _token_aware_batching_and_chunking(
         self,
+        config : GeminiConfig,
         content : BaseTextInput,
         questions : list[str],
-        system_prompt : str = None
     ) -> Response:
         # A version of generate_content_fixed() that automatically chunks depending on the token limits of the model being used.
         
-        input_token_limit, _ = self.gemini_api.get_model_token_limits()
+        input_token_limit, _ = self.gemini_api.get_model_token_limits(config.model)
 
         total_input_tokens = 0
         total_output_tokens = 0
@@ -319,7 +342,7 @@ class GeminiHandler:
             query_contents = f'Content:\n{curr_content}\n\nThere are {len(curr_batch)} questions. The questions are:\n' + '\n\t- '.join(curr_batch)
 
             input_tokens_used = self.gemini_api.count_tokens(
-                contents = [system_prompt, query_contents]
+                contents = [config.system_prompt, query_contents]
             )
 
             # Checking if the content is too large for the input token limit, if so splitting the content in half
@@ -333,7 +356,11 @@ class GeminiHandler:
 
             else:
                 try:
-                    response = self.gemini_api.generate_content(query_contents, system_prompt=system_prompt)
+                    response = self.gemini_api.generate_content(
+                        config.model,
+                        query_contents,
+                        system_prompt=config.system_prompt
+                    )
                 except exceptions.MaxOutputTokensExceeded as e:
                     # If MaxOutputToken is exceeded then we need to split the number of question in each batch by two.
                     # This will reduce the token size of the output.
