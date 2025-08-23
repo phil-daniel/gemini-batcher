@@ -42,11 +42,54 @@ class MediaChunkAndBatch():
         chunk_count = math.ceil(MediaChunkAndBatch.get_video_duration(media_input.filepath) / (chunk_duration - window_duration))
 
         for i in range(chunk_count):
+            # TODO: Different file extensions
             chunk_start_pos = i * (chunk_duration - window_duration)
-            MediaChunkAndBatch.trim_video(media_input.filepath, f'{output_folder_path}/chunk_{i}.mp4', chunk_start_pos, chunk_duration)
+            MediaChunkAndBatch.trim_video(
+                media_input.filepath,
+                f'{output_folder_path}/chunk_{i}.mp4',
+                chunk_start_pos,
+                chunk_duration
+            )
             chunked_files.append(f'{output_folder_path}/chunk_{i}.mp4')
 
         return chunked_files
+    
+    def chunk_semantically(
+        media_input : VideoFileInput,
+        output_folder_path : str,
+        gemini_client : GeminiApi,
+        min_sentences_per_chunk : int,
+        max_sentences_per_chunk,
+        transformer_model : str = 'all-MiniLM-L6-v2'
+    ) -> tuple[list[str], list[str]]:
+        transcript_duration = MediaChunkAndBatch.get_video_duration(media_input.filepath)
+        timestamps, sentences = MediaChunkAndBatch.generate_transcript(media_input.filepath, gemini_client)
+
+        chunks = TextChunkAndBatch.chunk_semantically(
+            text_input = BaseTextInput(" ".join(sentences)), 
+            min_sentences_per_chunk = min_sentences_per_chunk,
+            max_sentences_per_chunk = max_sentences_per_chunk,
+            transformer_model = transformer_model
+        )
+
+        chunk_timestamps = MediaChunkAndBatch.match_chunks_and_transcript_timings(
+            chunks,
+            sentences,
+            timestamps,
+            transcript_duration
+        )
+
+        chunk_files = []
+        for i in range(len(chunk_timestamps)-1):
+            MediaChunkAndBatch.trim_video(
+                media_input.filepath,
+                f'{output_folder_path}/chunk_{i}.mp4',
+                chunk_timestamps[i],
+                chunk_timestamps[i+1]
+            )
+            chunk_files.append(f'{output_folder_path}/chunk_{i}.mp4')
+        
+        return chunk_files, chunks
 
     def chunk_and_batch_semantically(
         media_input : VideoFileInput,

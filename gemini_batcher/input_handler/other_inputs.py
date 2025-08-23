@@ -1,4 +1,6 @@
-class VideoFileInput():
+from .text_inputs import BaseInput
+
+class VideoFileInput(BaseInput):
     """
     Represents a video file that is to be used as the input for the chunking and batching functions.
 
@@ -21,7 +23,7 @@ class VideoFileInput():
         self.filepath = filepath
         return
     
-class AudioFileInput():
+class AudioFileInput(BaseInput):
     """
     Represents an audio file that is to be used as the input for the chunking and batching functions.
 

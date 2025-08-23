@@ -4,12 +4,20 @@ import os
 from enum import Enum, auto
 import tempfile
 
-from .input_handler.text_inputs import BaseTextInput
+from .input_handler.text_inputs import BaseInput, BaseTextInput
+from .input_handler.other_inputs import VideoFileInput
 from .processor.text_chunk_and_batch import TextChunkAndBatch
 from .processor.media_chunk_and_batch import MediaChunkAndBatch
 from .processor.dynamic_batch import DynamicBatch
 
+from .strategies.text_chunking_strategies import BaseStrategy
+from .strategies import text_chunking_strategies
+from .strategies import media_chunking_strategies
+from .strategies import batching_strategies
+
 from .utils import exceptions
+
+from .gemini_config import GeminiConfig
 
 from .gemini_functions.gemini_api import Response, GeminiApi
 
@@ -28,58 +36,263 @@ class GeminiHandler:
             model=model,
             **kwargs
         )
-    
-    def change_model(
+
+    def generate_content(
         self,
-        model_name : str
-    ) -> None:
-        self.model = model_name
+        config : GeminiConfig,
+        content : BaseInput,
+        questions : list[str],
+        chunking_technique : BaseStrategy,
+        batching_technique : BaseStrategy
+    ) -> Response:
+        # Choosing the method to use based on the content type.
+        match content:
+            case BaseTextInput():
+                return self._generate_content_from_text(
+                    content,
+                    questions,
+                    chunking_technique,
+                    batching_technique
+                )
+            case _:
+                return self._generate_content_from_media(
+                    content,
+                    questions,
+                    chunking_technique,
+                    batching_technique
+                )
+        return None
+    
+    def _generate_content_from_media(
+        self,
+        content : VideoFileInput,
+        questions : list[str],
+        chunking_technique : BaseStrategy,
+        batching_technique : BaseStrategy
+    ):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Generating the chunks based on the inputted technique
+            chunks = []
+            chunk_transcripts = None
+            match chunking_technique:
+                case text_chunking_strategies.SlidingWindowChunking | text_chunking_strategies.SemanticChunking:
+                    # If we are using a text technique we generate a transcript and then just use that.
+                    _, sentences = MediaChunkAndBatch.generate_transcript(content)
+                    text_content = BaseTextInput(" ".join(sentences))
+                    return self._generate_content_from_text(
+                        content=text_content,
+                        questions=questions,
+                        chunking_technique=chunking_technique,
+                        batching_technique=batching_technique
+                    )
+                case media_chunking_strategies.SlidingWindowChunking:
+                    chunks = MediaChunkAndBatch.chunk_sliding_window_by_duration(
+                        content,
+                        temp_dir,
+                        chunking_technique.chunk_duration,
+                        chunking_technique.window_duration
+                    )
+                case media_chunking_strategies.SemanticChunking:
+                    chunks, chunk_transcripts = MediaChunkAndBatch.chunk_semantically(
+                        content,
+                        temp_dir,
+                        self.gemini_api,
+                        chunking_technique.min_sentences_per_chunk,
+                        chunking_technique.max_sentences_per_chunk,
+                        chunking_technique.transformer_model
+                    )
+                case _:
+                    raise NotImplementedError("Provided chunking method is not implemented or not suitable for input type.")
+            
+            # Generating the based on the inputted techniques
+            batches = []
+            match batching_technique:
+                case batching_strategies.FixedBatching():
+                    question_batches = DynamicBatch(
+                        questions,
+                        batching_technique.batch_size
+                    )
+                    batches = [question_batches for _ in range(len(chunks))]
+                case batching_strategies.SemanticBatching():
+                    if chunk_transcripts == None:
+                        raise NotImplementedError("A transcript has not been generated using the provided chunking technique, so semantic batching is not available.")
+
+                    semantic_batches = TextChunkAndBatch.batch_with_chunks_semantically(
+                        chunk_transcripts,
+                        questions,
+                        batching_technique.transformer_model
+                    )
+                    batches = [DynamicBatch(batch, batching_technique.batch_size) for batch in semantic_batches]
+                case _:
+                    raise NotImplementedError("Provided batching method is not implemented or not suitable for input type.")
+            
+            # TODO: SORT OUT SYSTEM PROMPT & explicit caching
+            partial_responses = []
+            for i in range(len(chunks)):
+                partial_responses.append(
+                    self._handle_single_media_chunk_and_batch(
+                        chunks[i],
+                        batches[i],
+                    )
+                )
         
-    def generate_content_fixed(
+        response = self._combine_partial_responses(partial_responses)
+        return response
+        
+    def _generate_content_from_text(
         self,
         content : BaseTextInput,
         questions : list[str],
-        chunk_char_length : int = 100000,
-        questions_per_batch : int = 50,
-        window_char_length : int = 100,
+        chunking_technique : BaseStrategy,
+        batching_technique : BaseStrategy
+    ):
+        # Generating the chunks based on the inputted technique
+        chunks = []
+        match chunking_technique:
+            case text_chunking_strategies.SlidingWindowChunking():
+                chunks = TextChunkAndBatch.chunk_sliding_window_by_length(
+                    text_input=content,
+                    chunk_char_size=chunking_technique.chunk_char_size,
+                    window_char_size=chunking_technique.window_char_size
+                )
+            case text_chunking_strategies.SemanticChunking():
+                chunks = TextChunkAndBatch.chunk_semantically(
+                    text_input=content,
+                    min_sentences_per_chunk=chunking_technique.min_sentences_per_chunk,
+                    max_sentences_per_chunk=chunking_technique.max_sentences_per_chunk,
+                    threshold_factor=chunking_technique.similarity_threashold_factor,
+                    transformer_model=chunking_technique.transformer_model
+                )
+            case text_chunking_strategies.TokenAwareChunkingAndBatching():
+                # If TokenAwareChunkingAndBatching is chosen as the chunking method the batching method is ignored.
+                return self._token_aware_batching_and_chunking(
+                    content=content,
+                    questions=questions,
+                )
+            case _:
+                raise NotImplementedError("Provided chunking method is not implemented or not suitable for input type.")
+        
+        # Generating the based on the inputted techniques
+        batches = []
+        match batching_technique:
+            case batching_strategies.FixedBatching():
+                question_batches = DynamicBatch(
+                    questions,
+                    batching_technique.batch_size
+                )
+                batches = [question_batches for _ in range(len(chunks))]
+            case batching_strategies.SemanticBatching():
+                semantic_batches = TextChunkAndBatch.batch_with_chunks_semantically(
+                    chunks,
+                    questions,
+                    batching_technique.transformer_model
+                )
+                batches = [DynamicBatch(batch, batching_technique.batch_size) for batch in semantic_batches]
+            case _:
+                raise NotImplementedError("Provided batching method is not implemented or not suitable for chunk type.")
+
+        # TODO: SORT OUT SYSTEM PROMPT
+        partial_responses = []
+        for i in range(len(chunks)):
+            partial_responses.append(
+                self._handle_single_text_chunk_and_batch(
+                    chunks[i],
+                    batches[i],
+                )
+            )
+        
+        response = self._combine_partial_responses(partial_responses)
+        return response
+
+    def _handle_single_media_chunk_and_batch(
+        self,
+        chunk_filepath : str,
+        question_batches : DynamicBatch,
         system_prompt : str = None,
+        use_explicit_caching : bool = False
     ) -> Response:
- 
-        chunks = TextChunkAndBatch.chunk_sliding_window_by_length(
-            text_input = content,
-            chunk_char_size = chunk_char_length,
-            window_char_size = window_char_length
-        )
-
-        question_batches = DynamicBatch(questions)
-
+        # TODO: Add explicit caching stuff.
         answers = {}
-
         total_input_tokens = 0
         total_output_tokens = 0
 
-        for chunk in chunks:
-            batch = question_batches.get_question_batch(questions_per_batch)
-            while len(batch) > 0:
-                query_contents = f'Content:\n{chunk}\n\nThere are {len(batch)} questions. The questions are:\n' + '\n\t- '.join(batch)
-                response = self.gemini_api.generate_content(query_contents, system_prompt=system_prompt)
+        batch = question_batches.get_question_batch()
+        while len(batch) > 0:
+            query_contents = f'Content:\nThe content has been attached as a file.\n\nThere are {len(batch)} questions. The questions are:\n' + '\n\t- '.join(batch)
+            
+            if use_explicit_caching:
+                if chunk_filepath not in self.gemini_api.cache.keys():
+                    self.gemini_api.add_to_cache(chunk_filepath)
+                response = self.gemini_api.generate_content(query_contents, system_prompt=system_prompt, cache_name=chunk)
+            else:
+                if chunk_filepath not in self.gemini_api.files.keys():
+                    self.gemini_api.upload_file(chunk_filepath)
+                response = self.gemini_api.generate_content(query_contents, system_prompt=system_prompt, files=[chunk])
 
-                total_input_tokens += response.input_tokens
-                total_output_tokens += response.output_tokens
+            total_input_tokens += response.input_tokens
+            total_output_tokens += response.output_tokens
 
-                for i in range(len(response.content)):
-                    if batch[i] not in answers.keys() and response.content[i] != 'N/A':
-                        answers[batch[i]] = response.content[i]
-                        question_batches.mark_answered(batch[i])
-                batch = question_batches.get_question_batch(questions_per_batch)
-
+            for i in range(len(response.content)):
+                if batch[i] not in answers.keys() and response.content[i] != 'N/A':
+                    answers[batch[i]] = response.content[i]
+                    question_batches.mark_answered(batch[i])
+            batch = question_batches.get_question_batch()
+        
         return Response(
             content = answers,
             input_tokens = total_input_tokens,
             output_tokens = total_output_tokens
         )
     
-    def generate_content_token_aware(
+    def _handle_single_text_chunk_and_batch(
+        self,
+        chunk : str,
+        question_batches : DynamicBatch,
+        system_prompt : str = None,
+    ) -> Response:
+        answers = {}
+        total_input_tokens = 0
+        total_output_tokens = 0
+
+        batch = question_batches.get_question_batch()
+        while len(batch) > 0:
+            query_contents = f'Content:\n{chunk}\n\nThere are {len(batch)} questions. The questions are:\n' + '\n\t- '.join(batch)
+            response = self.gemini_api.generate_content(query_contents, system_prompt=system_prompt)
+
+            total_input_tokens += response.input_tokens
+            total_output_tokens += response.output_tokens
+
+            for i in range(len(response.content)):
+                if batch[i] not in answers.keys() and response.content[i] != 'N/A':
+                    answers[batch[i]] = response.content[i]
+                    question_batches.mark_answered(batch[i])
+            batch = question_batches.get_question_batch()
+        
+        return Response(
+            content = answers,
+            input_tokens = total_input_tokens,
+            output_tokens = total_output_tokens
+        )
+
+    def _combine_partial_responses(
+        partial_responses : list[Response]  
+    ) -> Response:
+        answers = {}
+        total_input_tokens = 0
+        total_output_tokens = 0
+
+        for partial_response in partial_responses:
+            answers.update(partial_response.content)
+            total_input_tokens += partial_response.input_tokens
+            total_output_tokens += partial_response.output_tokens
+
+        return Response(
+            content=answers,
+            input_tokens=total_input_tokens,
+            output_tokens=total_output_tokens
+        )
+    
+    def _token_aware_batching_and_chunking(
         self,
         content : BaseTextInput,
         questions : list[str],
@@ -140,130 +353,6 @@ class GeminiHandler:
 
                 total_input_tokens += response.input_tokens
                 total_output_tokens += response.output_tokens
-
-        return Response(
-            content = answers,
-            input_tokens = total_input_tokens,
-            output_tokens = total_output_tokens
-        )
-
-    def generate_content_semantic(
-        self,
-        content : BaseTextInput,
-        questions : list[str],
-        system_prompt : str = None
-    ) -> Response:
-        content_chunks, question_batches = TextChunkAndBatch.chunk_and_batch_semantically(content, questions)
-
-        total_input_tokens = 0
-        total_output_tokens = 0
-        answers = {}
-        
-        for i in range(len(content_chunks)):
-            # If there are no questions in the current chunk's batch, then we don't need to query it.
-            if len(question_batches[i]) != 0:
-                query_contents = f'Content:\n{content_chunks[i]}\n\nThere are {len(question_batches[i])} questions. The questions are:\n' + '\n\t- '.join(question_batches[i])
-                response = self.gemini_api.generate_content(query_contents, system_prompt=system_prompt)
-
-                total_input_tokens += response.input_tokens
-                total_output_tokens += response.output_tokens
-                
-                for j in range(len(response.content)):
-                    answers[question_batches[i][j]] = response.content[j]
-        
-        return Response(
-            content = answers,
-            input_tokens = total_input_tokens,
-            output_tokens = total_output_tokens
-        )
-
-    def generate_content_media_fixed(
-        self,
-        media_path : str,
-        questions : list[str],
-        chunk_duration : int = 100,
-        questions_per_batch : int = 50,
-        window_duration : int = 0,
-        system_prompt : str = None,
-        use_explicit_caching : bool = True
-    ):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            chunks = MediaChunkAndBatch.chunk_sliding_window_by_duration(media_path, temp_dir, chunk_duration, window_duration)
-
-            question_batches = DynamicBatch(questions)
-
-            answers = {}
-
-            total_input_tokens = 0
-            total_output_tokens = 0
-
-            for chunk in chunks:
-                batch = question_batches.get_question_batch(questions_per_batch)
-                while len(batch) > 0:
-                    query_contents = f'Content:\nThis has been attached as a media file, named {chunk}\n\nThere are {len(batch)} questions. The questions are:\n' + '\n\t- '.join(batch)
-
-                    if use_explicit_caching:
-                        if chunk not in self.gemini_api.cache.keys():
-                            self.gemini_api.add_to_cache(chunk)
-                        response = self.gemini_api.generate_content(query_contents, system_prompt=system_prompt, cache_name=chunk)
-                    else:
-                        if chunk not in self.gemini_api.files.keys():
-                            self.gemini_api.upload_file(chunk)
-                        response = self.gemini_api.generate_content(query_contents, system_prompt=system_prompt, files=[chunk])
-
-                    total_input_tokens += response.input_tokens
-                    total_output_tokens += response.output_tokens
-
-                    for i in range(len(response.content)):
-                        if batch[i] not in answers.keys() and response.content[i] != 'N/A':
-                            answers[batch[i]] = response.content[i]
-                            question_batches.mark_answered(batch[i])
-                    batch = question_batches.get_question_batch(questions_per_batch)
-
-        return Response(
-            content = answers,
-            input_tokens = total_input_tokens,
-            output_tokens = total_output_tokens
-        )
-    
-    def generate_content_media_semantically(
-        self,
-        media_path : str,
-        questions : list[str],
-        questions_per_batch : int = 50,
-        system_prompt : str = None
-    ):
-        chunked_timestamps, batches = MediaChunkAndBatch.chunk_and_batch_semantically(media_path, questions, self.gemini_api)
-
-        answers = {}
-
-        total_input_tokens = 0
-        total_output_tokens = 0
-        
-        for i in range(len(chunked_timestamps) - 1):
-            if len(batches[i]) == 0:
-                continue
-
-            with tempfile.NamedTemporaryFile() as temp_file:
-                chunk_filepath = temp_file.name
-                MediaChunkAndBatch.trim_video(
-                    media_path,
-                    chunk_filepath,
-                    chunked_timestamps[i],
-                    chunked_timestamps[i+1]
-                )
-
-                if chunk_filepath not in self.gemini_api.files.keys():
-                    self.gemini_api.upload_file(chunk_filepath)
-                query_contents = f'Content:\nThis has been attached as a media file, named {chunk_filepath}\n\nThere are {len(batch)} questions. The questions are:\n' + '\n\t- '.join(batches[i])
-                response = self.gemini_api.generate_content(query_contents, system_prompt=system_prompt, files=[chunk])
-
-                total_input_tokens += response.input_tokens
-                total_output_tokens += response.output_tokens
-
-                for i in range(len(response.content)):
-                    if batches[i] not in answers.keys() and response.content[i] != 'N/A':
-                        answers[batches[i]] = response.content[i]
 
         return Response(
             content = answers,

@@ -10,10 +10,12 @@ class DynamicBatch:
 
     curr_chunk_question_queue : list[str]
     next_chunk_question_queue : list[str]
+    batch_size : int
 
     def __init__(
         self,
-        questions : list[str]
+        questions : list[str],
+        batch_size : int
     ) -> None:
         """
         Initialises the DynamicBatch object with the initial set of questions.
@@ -23,10 +25,10 @@ class DynamicBatch:
         """
         self.curr_chunk_question_queue = questions.copy()
         self.next_chunk_question_queue = questions.copy()
+        self.batch_size = batch_size
 
     def get_question_batch(
         self,
-        batch_size : int
     ) -> list[str]:
         """
         Retrieves the next batch of questions to ask.
@@ -42,7 +44,7 @@ class DynamicBatch:
             self.curr_chunk_question_queue = self.next_chunk_question_queue
             return []
         else:
-            batch_end_pos = min(batch_size, len(self.curr_chunk_question_queue))
+            batch_end_pos = min(self.batch_size, len(self.curr_chunk_question_queue))
             question_batch = self.curr_chunk_question_queue[:batch_end_pos]
             self.curr_chunk_question_queue = self.curr_chunk_question_queue[batch_end_pos:]
             return question_batch

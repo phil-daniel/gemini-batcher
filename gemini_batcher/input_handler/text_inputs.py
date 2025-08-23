@@ -1,8 +1,12 @@
 import logging
 import httpx
 from pathlib import Path
+from abc import ABC
 
-class BaseTextInput():
+class BaseInput(ABC):
+    pass
+
+class BaseTextInput(BaseInput):
     """
     A simple object holding the text input used throughout the chunking process.
 
