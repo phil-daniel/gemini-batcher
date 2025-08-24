@@ -58,11 +58,11 @@ class GeminiBatcher:
         depending on the input type.
 
         Args:
-            config (GeminiConfig): The configuration settings for the query (such as model name, system prompt, caching options, etc).
             content (BaseTextInput): The input to be chunked.
             questions (list[str]): The list of questions to be answered from the content.
             chunking_strategy (BaseStrategy): The chunking strategy to be used to split the input into chunks.
             batching_strategy (BaseStrategy): The strategy used to group questions into batches.
+            config (GeminiConfig, optional): The configuration settings for the query (such as model name, system prompt, caching options, etc).
 
         Returns:
             Response: An object containing all of the relevant information about the queries reponse. Including its answers and token usage.

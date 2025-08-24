@@ -11,7 +11,7 @@ The `GeminiConfig` is a configuration object for controlling how the Gemini API 
 ```python
 from gemini_batcher.gemini_config import GeminiConfig
 
-config = GeminiConfig(my_api_key, 'gemini-2.5-flash')
+config = GeminiConfig(api_key, model, use_previous_response_for_context, use_explicit_caching, system_prompt, show_chunks, show_batches)
 ```
 
 | *Class Attributes* | |
