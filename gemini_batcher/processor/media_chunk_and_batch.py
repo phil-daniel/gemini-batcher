@@ -35,19 +35,20 @@ class MediaChunkAndBatch():
             list[str]: Where each string is the file path of a chunk of the inputted video. Each video is of duration
             'chunk_duration', except for the final video, which may be shorter.
         """
+        file_extension = Path(media_input.filepath).suffix
+
         chunked_files = []
         chunk_count = math.ceil(MediaChunkAndBatch.get_video_duration(media_input.filepath) / (chunk_duration - window_duration))
 
         for i in range(chunk_count):
-            # TODO: Different file extensions
             chunk_start_pos = i * (chunk_duration - window_duration)
             MediaChunkAndBatch.trim_video(
                 in_path=media_input.filepath,
-                out_path=f'{output_folder_path}/chunk_{i}.mp4',
+                out_path=f'{output_folder_path}/chunk_{i}{file_extension}',
                 start_time=chunk_start_pos,
                 duration=chunk_duration
             )
-            chunked_files.append(f'{output_folder_path}/chunk_{i}.mp4')
+            chunked_files.append(f'{output_folder_path}/chunk_{i}{file_extension}')
 
         return chunked_files
     

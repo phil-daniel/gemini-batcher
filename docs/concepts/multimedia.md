@@ -12,8 +12,6 @@ Up until now, our examples have focused on applying chunking and batching techni
 
 In the [Fixed Chunking](https://phil-daniel.github.io/gemini-batcher/concepts/fixed_chunking.html) section of this guide, we introduced straightforward techniques for splitting large blocks of text into smaller chunks based on character count. In media inputs (such as video and audio), we can instead break the content up by fixed time intervals (i.e. every 30 seconds), to produce smaller clips which contain fewer tokens and can therefore fit within the model's context window. This is demonstrated in the code sample below, which shows how sliding window chunking can be implemented.
 
-TODO: Add example video which can be downloaded similar to the text files.
-
 In this code sample, the input video file is chunked into multiple 100 second clips, each of which overlaps by 10 seconds using a sliding window
 ```python
 input_file_path = "path/to/media/file"
@@ -56,9 +54,7 @@ response = client.models.generate_content(
 
 ## Transcript-based Chunking
 
-There are several models which are designed to generate a transcript from an audio or video file. Two of the most prominent options are Google's Speech-to-Text AI and OpenAI's Whisper, which are both dedicated to this task. However, the Gemini family of models also perform well when transcribing videos, which can be done by simply uploading the file and asking Gemini to create a transcript. This can be done as follows
-
-# TODO: Improve to JSON response.
+There are several models which are designed to generate a transcript from an audio or video file. Two of the most prominent options are Google's Speech-to-Text AI and OpenAI's Whisper, which are both dedicated to this task. However, the Gemini family of models also perform well when transcribing videos, which can be done by simply uploading the file and asking Gemini to create a transcript. This can be done as follows:
 
 ```python
 input_file_path = "path/to/media/file.mp3"
@@ -80,7 +76,6 @@ Using a Gemini model for transcription allows for us to maintain consistency in 
 
 Once a transcript of a file has been produced, it is then possible to use the various text-based chunking methods, such as fixed and semantic chunking. Once the chunks have been determined, the timestamps of each chunk can be found using the transcript and the media file can be trimmed into chunks which are then uploaded to model as shown in the duration chunking section.
 
-
 ## Other Chunking Methods
 
 So far in this section, we have just demonstrated how a transcript can be generated from a video or audio file, which then allows for perform text-based chunking and batching techniques to be applied. However, video and audio inputs have additional features which can also be used to create chunks, either by themselves or in combiniation with the text-based methods.
@@ -91,6 +86,6 @@ Speaker diarization is the proceess of identifying and separating inidivdual spe
 
 ### Video Methods
 
-In the same way that we can extract the transcript of a video or audio for text proccessing, we can also extract the audio track of a video to apply the audio specific techniques such as speaker diarization, which was previously mentioned. The code sample in TODO: ADD LINK demonstrates how audio can be extracted with the `ffmpeg-python` package. 
+In the same way that we can extract the transcript of a video or audio for text proccessing, we can also extract the audio track of a video to apply the audio specific techniques, such as speaker diarization, which was previously mentioned.
 
 Finally, video content also provides visual cues for chunking, such as scene changes or camera cuts. Another method would be to detect changes in the video, for example a change in scene or a camera cut, which could both provide a good chunking position. One useful tool for this is `PySceneDetect`, which is a python package that can be used to automatically detect shot changes in videos and to create separate clips.

@@ -97,7 +97,6 @@ class TextChunkAndBatch():
             similarity = cosine_similarity(s1, s2)[0][0]
             similarities.append(similarity)
         
-        # TODO: Testing using a dynamic threshold, could also try just using a fixed value.
         mean = np.mean(similarities)
         std_dev = np.std(similarities)
         similarity_threshold = mean - (std_dev * threshold_factor)

@@ -18,6 +18,9 @@ When using a billed API key, where token usage is charged, the cost savings gain
 
 The Gemini family of models provide two methods of caching, 'implicit caching' and 'explicit caching'. This guide will give a quick overview of the two methods, with more detail available in the [Gemini Context Caching Documentation](https://ai.google.dev/gemini-api/docs/caching?lang=python).
 
+Interactive examples demonstrating the uses of caching can be found on following Google Colab:
+<a target="_blank" href="https://colab.research.google.com/github/phil-daniel/gemini-batcher/blob/main/examples/caching.ipynb"><img src="https://colab.research.google.com/assets/colab-badge.svg" height=30/></a>
+
 ### Implicit Caching
 
 Implicit caching is enabled by default and works automatically, however to increase the likelihood of cache hits occuring, similar prompts should be made within a short period of time, with the common cotents at the beginning of each prompt. It is possible to check how successful the implicit caching has been by using the `usage_metadata` field of the API response, an example of this is shown below. The same code can be used for explicit caching, which is discussed later.
@@ -62,8 +65,6 @@ response = client.models.generate_content(
 ```
 
 A similar code sample demonstrating how caching can be used for other content types, such as videos, can be found in the Gemini documentation, [here](https://ai.google.dev/gemini-api/docs/caching?lang=python#generate-content).
-
-TODO: Show performance difference, graph etc
 
 ## Additional Links
 - [Gemini Context Caching Documentation](https://ai.google.dev/gemini-api/docs/caching?lang=python)

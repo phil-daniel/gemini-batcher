@@ -43,7 +43,6 @@ class GeminiBatcher:
         self.gemini_api = GeminiApi(
             api_key=config.api_key,
         )
-        # TODO: ADD **kwargs back
 
     def generate_content(
         self,

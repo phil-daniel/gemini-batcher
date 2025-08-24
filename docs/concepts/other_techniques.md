@@ -8,6 +8,9 @@ parent: Concepts
 
 In previous sections, basic techniques for batching and chunking (such as fixed batching) were demonstrated. These methods are incredibly easy to implement however there are alternative methods that may perform better. In this section we will discuss some of these methods.
 
+Interactive examples demonstrating the techniques mentioned in this page can be found in following Google Colab:
+<a target="_blank" href="https://colab.research.google.com/github/phil-daniel/gemini-batcher/blob/main/examples/other_techniques.ipynb"><img src="https://colab.research.google.com/assets/colab-badge.svg" height=30/></a>
+
 ## Token Awareness
 
 As previously mentioned, one of the primary limitations of large language models is their token limit, which restricts the number of input and output tokens that can be processed or generated in a single API call. To improve the efficiency of API calls, it is important to make the best possible use of the available context window. One way of doing this is by dynamically adjusting the size of the input and expected output depending on the task and the model being used. This can be done using the chunking and batching techniques discussed earlier.

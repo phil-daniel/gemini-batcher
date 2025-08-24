@@ -188,7 +188,6 @@ class GeminiApi:
         while uploaded_file.state.name == "PROCESSING" or uploaded_file.state.name == "PENDING":
             logging.info(f'Waiting for file {filepath} to upload, current state is {uploaded_file.state.name}')
             time.sleep(5)
-        # TODO: Add error handling if upload was not successful
         self.files[filepath] = uploaded_file
         return
     
@@ -326,7 +325,6 @@ class GeminiApi:
                 if file in self.files.keys():
                     uploaded_file = self.files[file]
                 else:
-                    # TODO: Error handling if the file does not exist.
                     self.upload_file(file)
                     uploaded_file = self.files[file]
                 prompt.append(uploaded_file)
