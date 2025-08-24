@@ -5,7 +5,7 @@ from abc import ABC
 @dataclass
 class BaseStrategy(ABC):
     """
-    Abstract base class for all batching and chunking strategies.
+    Abstract base class for all of the batching and chunking strategies.
     This provides a common interfact which allows strategies to be used interchangably.
     """
     pass
@@ -14,7 +14,7 @@ class BaseStrategy(ABC):
 class TextSlidingWindowChunking(BaseStrategy):
     """
     Strategy for chunking text based on overlapping windows of characters.
-    This can also be used in media content by generating a transcript which is used instead of the nedia.
+    This can also be used in media content by generating a transcript which is used instead of the media.
 
     Attributes:
         chunk_char_size (int): The number of characters per chunk.
