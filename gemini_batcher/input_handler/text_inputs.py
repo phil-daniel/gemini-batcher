@@ -4,6 +4,10 @@ from pathlib import Path
 from abc import ABC
 
 class BaseInput(ABC):
+    """
+    Abstract base class for all input types.
+    This provides a common interfact which allows input types to be used interchangably.
+    """
     pass
 
 class BaseTextInput(BaseInput):

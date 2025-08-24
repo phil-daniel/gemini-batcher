@@ -153,7 +153,7 @@ class GeminiBatcher:
                 chunk_response = self._handle_single_media_chunk_and_batch(
                     config=config,
                     chunk_filepath=chunks[i],
-                    question_batches=batches[i]
+                    question_batches=batches[i],
                     previous_context=previous_context
                 )
                 response.add_internal_response(chunk_response)

@@ -1,5 +1,4 @@
 import math
-import os
 import ffmpeg
 import tempfile
 
@@ -34,9 +33,6 @@ class MediaChunkAndBatch():
         Returns:
             list[str]: Where each string is the file path of a chunk of the inputted video. Each video is of duration
             'chunk_duration', except for the final video, which may be shorter.
-        
-        Raises:
-            TODO
         """
         chunked_files = []
         chunk_count = math.ceil(MediaChunkAndBatch.get_video_duration(media_input.filepath) / (chunk_duration - window_duration))
@@ -45,10 +41,10 @@ class MediaChunkAndBatch():
             # TODO: Different file extensions
             chunk_start_pos = i * (chunk_duration - window_duration)
             MediaChunkAndBatch.trim_video(
-                media_input.filepath,
-                f'{output_folder_path}/chunk_{i}.mp4',
-                chunk_start_pos,
-                chunk_duration
+                in_path=media_input.filepath,
+                out_path=f'{output_folder_path}/chunk_{i}.mp4',
+                start_time=chunk_start_pos,
+                duration=chunk_duration
             )
             chunked_files.append(f'{output_folder_path}/chunk_{i}.mp4')
 
@@ -59,71 +55,58 @@ class MediaChunkAndBatch():
         output_folder_path : str,
         gemini_client : GeminiApi,
         min_sentences_per_chunk : int,
-        max_sentences_per_chunk,
+        max_sentences_per_chunk : int,
         transformer_model : str = 'all-MiniLM-L6-v2'
     ) -> tuple[list[str], list[str]]:
+        """
+        Splits a media input into chunks based on the semantic similarity of sentences in it's transcript.
+        This works by generating a transcript, which is then split into text chunks using SentenceTransformer.
+        Text chunks are then aligned with their corresponding video timestamps, and the input is trimmed into its chunks.
+
+        Args:
+            media_input (VideoFileInput): The video file input to be chunked.
+            output_folder_path (str): The path to the folder where the video chunks should be saved. It can be useful to use `tempfiles` for this.
+            gemini_client (GeminiApi): The client instance used to make calls to the Gemini API to generate transcripts.
+            min_sentences_per_chunk (int): The minimum number of sentences per chunk.
+            max_sentences_per_chunk (int): The maximum number of sentences per chunk.
+            transformer_model (str, optional): The SentenceTransformer model used to create sentence embeddings.
+                The default model is 'all-MiniLM-L6-v2'.
+        
+        Returns:
+            tuple[list[str], list[str]]:
+                - A list of the file paths to the generated video chunk files.
+                - A llist of the corresponding text chunks from the transcript.
+        """
+
         transcript_duration = MediaChunkAndBatch.get_video_duration(media_input.filepath)
         timestamps, sentences = MediaChunkAndBatch.generate_transcript(media_input.filepath, gemini_client)
 
         chunks = TextChunkAndBatch.chunk_semantically(
-            text_input = BaseTextInput(" ".join(sentences)), 
-            min_sentences_per_chunk = min_sentences_per_chunk,
-            max_sentences_per_chunk = max_sentences_per_chunk,
-            transformer_model = transformer_model
+            text_input=BaseTextInput(" ".join(sentences)), 
+            min_sentences_per_chunk=min_sentences_per_chunk,
+            max_sentences_per_chunk=max_sentences_per_chunk,
+            transformer_model=transformer_model
         )
 
         chunk_timestamps = MediaChunkAndBatch.match_chunks_and_transcript_timings(
-            chunks,
-            sentences,
-            timestamps,
-            transcript_duration
+            chunks=chunks,
+            transcript_sentences=sentences,
+            transcript_timings=timestamps,
+            media_end_time=transcript_duration
         )
 
+        # TODO: Currently using mp4
         chunk_files = []
         for i in range(len(chunk_timestamps)-1):
             MediaChunkAndBatch.trim_video(
-                media_input.filepath,
-                f'{output_folder_path}/chunk_{i}.mp4',
-                chunk_timestamps[i],
-                chunk_timestamps[i+1]
+                in_path=media_input.filepath,
+                out_path=f'{output_folder_path}/chunk_{i}.mp4',
+                start_time=chunk_timestamps[i],
+                duration=chunk_timestamps[i+1]-chunk_timestamps[i]
             )
             chunk_files.append(f'{output_folder_path}/chunk_{i}.mp4')
         
         return chunk_files, chunks
-
-    def chunk_and_batch_semantically(
-        media_input : VideoFileInput,
-        questions : list[str],
-        gemini_client : GeminiApi,
-        min_sentences_per_chunk : int = 5,
-        max_sentences_per_chunk : int = 20,
-        transformer_model : str = 'all-MiniLM-L6-v2'
-    ) -> tuple[list[float], list[str]]:
-        transcript_duration = MediaChunkAndBatch.get_video_duration(media_input.filepath)
-        timestamps, sentences = MediaChunkAndBatch.generate_transcript(media_input.filepath, gemini_client)
-
-        chunks = TextChunkAndBatch.chunk_semantically(
-            text_input = BaseTextInput(" ".join(sentences)), 
-            min_sentences_per_chunk = min_sentences_per_chunk,
-            max_sentences_per_chunk = max_sentences_per_chunk,
-            transformer_model = transformer_model
-        )
-
-        batched_questions = TextChunkAndBatch.batch_with_chunks_semantically(
-            chunked_content = chunks,
-            questions = questions,
-            transformer_model = transformer_model
-        )
-
-        chunk_timestamps = MediaChunkAndBatch.match_chunks_and_transcript_timings(
-            chunks,
-            sentences,
-            timestamps,
-            transcript_duration
-        )
-
-        return chunk_timestamps, batched_questions
-
 
     def get_video_duration(
         path : str
@@ -136,12 +119,7 @@ class MediaChunkAndBatch():
         
         Returns:
             float: The duration of the video in seconds.
-        
-        Raises:
-            TODO
         """
-        # TODO: Error checking to ensure that the file path exists
-        # TODO: Move this to each individual Input class.
         probe = ffmpeg.probe(path)
         duration = float(probe['format']['duration'])
         return duration
@@ -160,30 +138,72 @@ class MediaChunkAndBatch():
             - out_path (str): The filepath the trimmed video should be stored at.
             - start_time (float): The timestamp of the original video the trimmed video should start at (in seconds).
             - duration (float): The duration of the trimmed video (in seconds).
-        
-        Raises:
-            TODO
         """
-        # TODO: Error checking to ensure that the file path exists
-        ffmpeg.input(in_path, ss=start_time).output(out_path, to=duration, c='copy').run(overwrite_output=True, capture_stdout=True, capture_stderr=True)
+        ffmpeg.input(
+            in_path,
+            ss=start_time
+        ).output(
+            out_path,
+            to=duration,
+            c='copy'
+        ).run(
+            overwrite_output=True,
+            capture_stdout=True,
+            capture_stderr=True
+        )
         return
     
     def extract_audio(
         in_path : str,
         out_path : str
-    ):
-        ffmpeg.input(in_path).output(out_path, ac=1, ar='8000').run(overwrite_output=True)
+    ) -> None:
+        """
+        Extracts the audio from a video file, saving is as a `.wav` file.
+        The function uses FFmpeg, and converts the audio track into a single channel, sampled at 8 kHz.
+
+        Args:
+            in_path (str): The path to input media file.
+            out_path (str): The path to save the extracted audio file at.
+        """
+        ffmpeg.input(
+            in_path
+        ).output(
+            out_path,
+            ac=1,
+            ar='8000'
+        ).run(
+            overwrite_output=True
+        )
+        return
     
     def generate_transcript(
         filepath : str,
         gemini_client : GeminiApi
-    ):
+    ) -> tuple[list[float], list[str]]:
+        """
+        Generates a transcript for a video or audio file using the Gemini API.
+
+        Args:
+            filepath(str): Path to the input media file.
+            gemini_client (GeminiApi): The Gemini client to be used for transcription.
+        
+        Returns:
+            tuple[list[float], list[str]]:
+                - List of the start time (in seconds) for each transcribed sentence.
+                - List of the corresponding sentences.
+        """
         with tempfile.NamedTemporaryFile(suffix=".wav") as temp_audio_file:
             audio_filepath = temp_audio_file.name
 
-            MediaChunkAndBatch.extract_audio(filepath, audio_filepath)
+            MediaChunkAndBatch.extract_audio(
+                in_path=filepath,
+                out_path=audio_filepath
+            )
 
-            prompt = "Transcript the attached file, outputted as JSON. Each entry must be a single sentence with the following fields: start_time (in seconds as float), end_time (in seconds as float) and the sentence itself."
+            prompt = (
+                "Transcript the attached file, outputted as JSON. Each entry must be a single sentence with the following fields:"
+                "start_time (in seconds as float), end_time (in seconds as float) and the sentence itself."
+            )
 
             model_config = gemini_client.create_custom_content_config(
                 response_mime_type="application/json",
@@ -191,10 +211,10 @@ class MediaChunkAndBatch():
             )
 
             response = gemini_client.generate_content(
-                prompt = prompt,
-                files = [audio_filepath],
-                system_prompt = "",
-                content_config = model_config
+                prompt=prompt,
+                files=[audio_filepath],
+                system_prompt="",
+                content_config=model_config
             )
 
         timestamps = []
@@ -212,6 +232,23 @@ class MediaChunkAndBatch():
         transcript_timings : list[float],
         media_end_time : float
     ) -> list[float]:
+        """
+        Aligns chunked transcript text with the timestamps from the original media input.
+
+        This function assumes that:
+        - Each chunk is formed by concatenating full transcript sentences.
+        - Transcript timings are aligned at the sentence level.
+
+        Args:
+            chunks (list[str]): List of text chunks created during chunking.
+            transcript_sentences (list[str]): List of the sentences generated during transcription.
+            transcript_timings (list[float]): The start times for each transcripted sentence.
+            media_end_time (float): The duration of the original media file (in seconds).
+        
+        Returns:
+            list[float]: A list of timestamps corresponding to the chunk boundaries.
+                Chunk `i`'s timestamp is between `i` and `i+1`
+        """
         # This makes the assumption that the each chunk consists of entire sentences joined by spaces.
         chunk_times = [0]
 
