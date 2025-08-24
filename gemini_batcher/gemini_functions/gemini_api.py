@@ -119,7 +119,7 @@ class GeminiApi:
         return self.client.models.count_tokens(
             model=model,
             contents = contents
-        )
+        ).total_tokens
 
     def add_to_cache(
         self,
