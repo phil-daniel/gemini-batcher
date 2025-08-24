@@ -14,15 +14,10 @@ from gemini_batcher.gemini_batcher import GeminiBatcher
 config = GeminiBatcher(config)
 ```
 
-    Attributes:
-        gemini_api (GeminiApi): The GeminiApi object provides a wrapper around the Gemini Python SDK, allowing for additional error handling.
-        config (GeminiConfig): The default config settings to be used when querying the Gemini API. This can be replaced when calling `generate_content()`.
-    """
-
 | *Class Attributes* | |
 |------------------|----------------------------------------|
 | gemini_api (GeminiApi) | The GeminiApi object provides a wrapper around the Gemini Python SDK, allowing for additional error handling. |
-| config (GeminiConfig) | The default config settings to be used when querying the Gemini API. This can, optionally, be replaced when calling `generate_content()`. |
+| config (GeminiConfig) | The default config settings to be used when querying the Gemini API. |
 
 ## Initialisation
 
@@ -34,7 +29,7 @@ __init__(config)
 
 | *Arguments* | |
 |------------------|----------------------------------------|
-| config (GeminiConfig) | The configuration settings for the query (such as model name, system prompt, caching options, etc). |
+| config (GeminiConfig) | The configuration settings for queries to the Gemini model (such as model name, system prompt, caching options, etc). This can, optionally, be changed when calling `generate_content()`. |
 
 ## Methods
 

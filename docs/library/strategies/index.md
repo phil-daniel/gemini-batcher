@@ -17,3 +17,6 @@ Strategies are interchangeable objects which describe how content should be chun
     - `TextSemanticChunking` (by using the transcript only)
     - `MediaSlidingWindowChunking`
     - `MediaSemanticChunking`
+- Batching strategies:
+    - `FixedBatching`
+    - `SemanticBatching`
