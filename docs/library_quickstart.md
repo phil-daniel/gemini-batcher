@@ -5,7 +5,7 @@ nav_order: 5
 
 # Gemini-Batcher Library Quickstart Guide
 
-## Library Setup
+## Install Library
 
 Clone the repository and install the package as follows:
 ```

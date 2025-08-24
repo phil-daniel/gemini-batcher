@@ -18,6 +18,9 @@ class BaseMediaInput(BaseInput):
         """
         Retrieve the path to the audio file associated with this media input.
 
+        Args:
+            out_path (str): The filepath of the output, where possible.
+
         Returns:
             str: The file path to the audio file.
 
@@ -60,6 +63,9 @@ class VideoFileInput(BaseMediaInput):
         Args:
             in_path (str): The path to input media file.
             out_path (str): The path to save the extracted audio file at.
+        
+        Returns:
+            str: The output path, this is the same as the out_path arguement.
         """
         ffmpeg.input(
             self.filepath
