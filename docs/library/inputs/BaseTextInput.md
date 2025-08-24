@@ -15,14 +15,18 @@ transcript = "Imagine this is a transcript! Ordinarily this would be a lot longe
 text_content = BaseTextInput(transcript)
 ```
 
-## Class Attributes
-- content (str): The text contents to be processed.
+| *Class Attributes* | |
+|------------------|----------------------------------------|
+| content (str) | The text contents to be processed. |
 
 ## Initialisation
 
+Initialises a `BaseTextInput` instance storing the provided content argument as a object attribute.
+
 ```python
-__init__(content : str)
+__init__(content)
 ```
 
-Arguements:
-- content (str): The text contents to be stored within the object for processing.
+| *Arguments* | |
+|------------------|----------------------------------------|
+| content (str) | The text contents to be stored within the object for processing. |
