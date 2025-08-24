@@ -15,7 +15,7 @@ class BaseTextInput(BaseInput):
     A simple object holding the text input used throughout the chunking process.
 
     Attributes:
-        content (str): The text content.
+        content (str): The text contents.
     """
 
     content : str
