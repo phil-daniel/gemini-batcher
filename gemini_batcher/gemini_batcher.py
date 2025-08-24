@@ -2,7 +2,7 @@ import logging
 import tempfile
 
 from .input_handler.text_inputs import BaseInput, BaseTextInput
-from .input_handler.other_inputs import BaseMediaInput
+from .input_handler.media_inputs import BaseMediaInput
 from .processor.text_chunk_and_batch import TextChunkAndBatch
 from .processor.media_chunk_and_batch import MediaChunkAndBatch
 from .processor.dynamic_batch import DynamicBatch

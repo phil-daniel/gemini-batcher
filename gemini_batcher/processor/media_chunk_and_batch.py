@@ -5,7 +5,7 @@ from pathlib import Path
 
 from .text_chunk_and_batch import TextChunkAndBatch
 from ..input_handler.text_inputs import BaseTextInput
-from ..input_handler.other_inputs import BaseMediaInput, VideoFileInput
+from ..input_handler.media_inputs import BaseMediaInput, VideoFileInput
 from ..gemini_functions.gemini_api import GeminiApi
 
 from ..utils.json_templates import TranscriptedSentence
