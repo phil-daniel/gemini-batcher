@@ -17,6 +17,7 @@ There are various different methods of chunking, which can also be combined with
 ## Examples
 
 The following examples demonstrate how chunking can be used and can be tested yourself by following the [setup information](https://phil-daniel.github.io/gemini-batcher/concepts/setup.html) or accessing the Google Colab:
+
 <a target="_blank" href="https://colab.research.google.com/github/phil-daniel/gemini-batcher/blob/main/examples/chunking.ipynb"><img src="https://colab.research.google.com/assets/colab-badge.svg" height=30/></a>
 
 In the following examples, we use an sample content containing ~54000 characters, which is significantly lower than the input token limit of current state-of-the-art models. However, for the purpose of these exanples, we will assume an input token limit that effectively restricts us to 10,000 characters.

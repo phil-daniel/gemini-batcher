@@ -9,6 +9,7 @@ parent: Concepts
 In previous sections, basic techniques for batching and chunking (such as fixed batching) were demonstrated. These methods are incredibly easy to implement however there are alternative methods that may perform better. In this section we will discuss some of these methods.
 
 Interactive examples demonstrating the techniques mentioned in this page can be found in following Google Colab:
+
 <a target="_blank" href="https://colab.research.google.com/github/phil-daniel/gemini-batcher/blob/main/examples/other_techniques.ipynb"><img src="https://colab.research.google.com/assets/colab-badge.svg" height=30/></a>
 
 ## Token Awareness
@@ -158,12 +159,12 @@ We can continue with the semantic approach by also batching questions based on t
 
 ```python
 # Creating a batch for each chunk. Each batch only contains the questions for its respective chunks.
-question_batches = [[] for _ in range(len(chunked_content))]
+question_batches = [[] for _ in range(len(content_chunks))]
 
 # Creating embeddings for each question.
 question_embeddings = model.encode(questions)
 # Creating an embeddings for each chunk - not each sentence in a chunk.
-chunk_embeddings = model.encode(chunked_content)
+chunk_embeddings = model.encode(content_chunks)
 
 for i in range(len(question_embeddings)):
     # Calculating the similarity to each chunk.

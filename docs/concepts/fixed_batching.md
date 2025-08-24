@@ -19,6 +19,7 @@ There are, however, some considerations which need to be made during implementat
 ## Examples
 
 The following examples demonstrate the efficiency gains achieved when using batching and can be tested yourself by following the [setup information](https://phil-daniel.github.io/gemini-batcher/concepts/setup.html) or accessing the Google Colab:
+
 <a target="_blank" href="https://colab.research.google.com/github/phil-daniel/gemini-batcher/blob/main/examples/batching.ipynb"><img src="https://colab.research.google.com/assets/colab-badge.svg" height=30/></a>
 
 ### 1. No Batching

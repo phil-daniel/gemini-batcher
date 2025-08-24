@@ -19,6 +19,7 @@ When using a billed API key, where token usage is charged, the cost savings gain
 The Gemini family of models provide two methods of caching, 'implicit caching' and 'explicit caching'. This guide will give a quick overview of the two methods, with more detail available in the [Gemini Context Caching Documentation](https://ai.google.dev/gemini-api/docs/caching?lang=python).
 
 Interactive examples demonstrating the uses of caching can be found on following Google Colab:
+
 <a target="_blank" href="https://colab.research.google.com/github/phil-daniel/gemini-batcher/blob/main/examples/caching.ipynb"><img src="https://colab.research.google.com/assets/colab-badge.svg" height=30/></a>
 
 ### Implicit Caching
