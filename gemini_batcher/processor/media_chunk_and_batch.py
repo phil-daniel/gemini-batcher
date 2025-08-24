@@ -1,10 +1,11 @@
 import math
 import ffmpeg
 import tempfile
+from pathlib import Path
 
 from .text_chunk_and_batch import TextChunkAndBatch
 from ..input_handler.text_inputs import BaseTextInput
-from ..input_handler.other_inputs import VideoFileInput
+from ..input_handler.other_inputs import BaseMediaInput, VideoFileInput
 from ..gemini_functions.gemini_api import GeminiApi
 
 from ..utils.json_templates import TranscriptedSentence
@@ -84,7 +85,7 @@ class MediaChunkAndBatch():
             path=media_input.filepath
         )
         timestamps, sentences = MediaChunkAndBatch.generate_transcript(
-            filepath=media_input.filepath,
+            filepath=media_input,
             gemini_client=gemini_client,
             model=gemini_model
         )
@@ -103,16 +104,17 @@ class MediaChunkAndBatch():
             media_end_time=transcript_duration
         )
 
-        # TODO: Currently using mp4
+        file_extension = Path(media_input.filepath).suffix
+
         chunk_files = []
         for i in range(len(chunk_timestamps)-1):
             MediaChunkAndBatch.trim_video(
                 in_path=media_input.filepath,
-                out_path=f'{output_folder_path}/chunk_{i}.mp4',
+                out_path=f'{output_folder_path}/chunk_{i}{file_extension}',
                 start_time=chunk_timestamps[i],
                 duration=chunk_timestamps[i+1]-chunk_timestamps[i]
             )
-            chunk_files.append(f'{output_folder_path}/chunk_{i}.mp4')
+            chunk_files.append(f'{output_folder_path}/chunk_{i}{file_extension}')
         
         return chunk_files, chunks
 
@@ -161,31 +163,8 @@ class MediaChunkAndBatch():
         )
         return
     
-    def extract_audio(
-        in_path : str,
-        out_path : str
-    ) -> None:
-        """
-        Extracts the audio from a video file, saving is as a `.wav` file.
-        The function uses FFmpeg, and converts the audio track into a single channel, sampled at 8 kHz.
-
-        Args:
-            in_path (str): The path to input media file.
-            out_path (str): The path to save the extracted audio file at.
-        """
-        ffmpeg.input(
-            in_path
-        ).output(
-            out_path,
-            ac=1,
-            ar='8000'
-        ).run(
-            overwrite_output=True
-        )
-        return
-    
     def generate_transcript(
-        filepath : str,
+        input_file : BaseMediaInput,
         gemini_client : GeminiApi,
         model : str
     ) -> tuple[list[float], list[str]]:
@@ -205,10 +184,7 @@ class MediaChunkAndBatch():
         with tempfile.NamedTemporaryFile(suffix=".wav") as temp_audio_file:
             audio_filepath = temp_audio_file.name
 
-            MediaChunkAndBatch.extract_audio(
-                in_path=filepath,
-                out_path=audio_filepath
-            )
+            audio_filepath = input_file.get_audio_file(audio_filepath)
 
             prompt = (
                 "Transcript the attached file, outputted as JSON. Each entry must be a single sentence with the following fields:"

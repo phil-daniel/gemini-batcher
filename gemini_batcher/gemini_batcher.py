@@ -2,7 +2,7 @@ import logging
 import tempfile
 
 from .input_handler.text_inputs import BaseInput, BaseTextInput
-from .input_handler.other_inputs import VideoFileInput
+from .input_handler.other_inputs import BaseMediaInput
 from .processor.text_chunk_and_batch import TextChunkAndBatch
 from .processor.media_chunk_and_batch import MediaChunkAndBatch
 from .processor.dynamic_batch import DynamicBatch
@@ -88,7 +88,7 @@ class GeminiBatcher:
                     chunking_strategy=chunking_strategy,
                     batching_strategy=batching_strategy
                 )
-            case _:
+            case BaseMediaInput():
                 return self._generate_content_from_media(
                     config=config,
                     content=content,
@@ -101,7 +101,7 @@ class GeminiBatcher:
     def _generate_content_from_media(
         self,
         config : GeminiConfig,
-        content : VideoFileInput,
+        content : BaseMediaInput,
         questions : list[str],
         chunking_strategy : BaseStrategy,
         batching_strategy : BaseStrategy
