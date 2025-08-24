@@ -18,14 +18,27 @@ from .gemini_functions.gemini_api import InternalResponse, GeminiApi
 from .response import Response
 
 class GeminiBatcher:
+    """
+    Provides the main functionalitys of the gemini-batcher library.
+
+    Attributes:
+        gemini_api (GeminiApi): The GeminiApi object provides a wrapper around the Gemini Python SDK, allowing for additional error handling.
+        config (GeminiConfig): The default config settings to be used when querying the Gemini API. This can be replaced when calling `generate_content()`.
+    """
 
     gemini_api : GeminiApi
-    config : GeminiApi
+    config : GeminiConfig
 
     def __init__(
         self,
         config : GeminiConfig
     ) -> None:
+        """
+        Initializes the GeminiBatcher object with a given Gemini configuration. This involves creating the GeminiApi object which allows for API calls to Gemini models to be made.
+
+        Args:
+            config (GeminiConfig): The configuration settings for the query (such as model name, system prompt, caching options, etc).
+        """
         self.config = config
         self.gemini_api = GeminiApi(
             api_key=config.api_key,
@@ -40,6 +53,25 @@ class GeminiBatcher:
         batching_strategy : BaseStrategy,
         config : GeminiConfig = None
     ) -> Response:
+        """
+        The base function used to generate the responses from the Gemini API. This function selects the relevant sub-function to generate the response
+        depending on the input type.
+
+        Args:
+            config (GeminiConfig): The configuration settings for the query (such as model name, system prompt, caching options, etc).
+            content (BaseTextInput): The input to be chunked.
+            questions (list[str]): The list of questions to be answered from the content.
+            chunking_strategy (BaseStrategy): The chunking strategy to be used to split the input into chunks.
+            batching_strategy (BaseStrategy): The strategy used to group questions into batches.
+
+        Returns:
+            Response: An object containing all of the relevant information about the queries reponse. Including its answers and token usage.
+                Optional information such as the chunks/batches generated can also be provided depending on the provided. `config` parameter.  
+
+        Raises:
+            NotImplemenentedError: If an unsupported chunking or batching strategy is provided.
+        """
+
         # Updating the config if it has been changed
         if config != None:
             self.config = config
@@ -50,19 +82,19 @@ class GeminiBatcher:
         match content:
             case BaseTextInput():
                 return self._generate_content_from_text(
-                    config,
-                    content,
-                    questions,
-                    chunking_strategy,
-                    batching_strategy
+                    config=config,
+                    content=content,
+                    questions=questions,
+                    chunking_strategy=chunking_strategy,
+                    batching_strategy=batching_strategy
                 )
             case _:
                 return self._generate_content_from_media(
-                    config,
-                    content,
-                    questions,
-                    chunking_strategy,
-                    batching_strategy
+                    config=config,
+                    content=content,
+                    questions=questions,
+                    chunking_strategy=chunking_strategy,
+                    batching_strategy=batching_strategy
                 )
         return None
     
@@ -74,6 +106,33 @@ class GeminiBatcher:
         chunking_strategy : BaseStrategy,
         batching_strategy : BaseStrategy
     ) -> Response:
+        """
+        Generates answers to a set of questions from a media input using the provided chunking and batching strategies.
+        This function handles calling the relevant chunking and batching functions to generate the required information.
+        It then handles queries the Gemini API and combining the answers to produce the response.
+
+        Args:
+            config (GeminiConfig): The configuration settings for the query (such as model name, system prompt, caching options, etc).
+            content (BaseTextInput): The video input to be chunked.
+            questions (list[str]): The list of questions to be answered from the content.
+            chunking_strategy (BaseStrategy): The chunking strategy to be used to split the media into chunks.
+                Supported strategies:
+                    - `TextSlidingWindowChunking`
+                    - `TextSemanticChunking`
+                    - `MediaSlidingWindowChunking`
+                    - `MediaSemanticChunking`
+            batching_strategy (BaseStrategy): The strategy used to group questions into batches.
+                Supported strategies:
+                    - `FixedBatching`
+                    - `SemanticBatching`
+
+        Returns:
+            Response: An object containing all of the relevant information about the queries reponse. Including its answers and token usage.
+                Optional information such as the chunks/batches generated can also be provided depending on the provided. `config` parameter.  
+
+        Raises:
+            NotImplemenentedError: If an unsupported chunking or batching strategy is provided.            
+        """
         with tempfile.TemporaryDirectory() as temp_dir:
             response = Response()
             # Generating the chunks based on the inputted technique
@@ -93,20 +152,20 @@ class GeminiBatcher:
                     )
                 case MediaSlidingWindowChunking():
                     chunks = MediaChunkAndBatch.chunk_sliding_window_by_duration(
-                        content,
-                        temp_dir,
-                        chunking_strategy.chunk_duration,
-                        chunking_strategy.window_duration
+                        media_input=content,
+                        output_folder_path=temp_dir,
+                        chunk_duration=chunking_strategy.chunk_duration,
+                        window_duration=chunking_strategy.window_duration
                     )
                 case MediaSemanticChunking():
                     chunks, chunk_transcripts = MediaChunkAndBatch.chunk_semantically(
-                        config,
-                        content,
-                        temp_dir,
-                        self.gemini_api,
-                        chunking_strategy.min_sentences_per_chunk,
-                        chunking_strategy.max_sentences_per_chunk,
-                        chunking_strategy.transformer_model
+                        media_input=content,
+                        output_folder_path=temp_dir,
+                        gemini_client=self.gemini_api,
+                        gemini_model=config.model,
+                        min_sentences_per_chunk=chunking_strategy.min_sentences_per_chunk,
+                        max_sentences_per_chunk=chunking_strategy.max_sentences_per_chunk,
+                        transformer_model=chunking_strategy.transformer_model
                     )
                 case _:
                     raise NotImplementedError("Provided chunking method is not implemented or not suitable for input type.")
@@ -119,8 +178,8 @@ class GeminiBatcher:
             match batching_strategy:
                 case FixedBatching():
                     question_batches = DynamicBatch(
-                        questions,
-                        batching_strategy.batch_size
+                        questions=questions,
+                        batch_size=batching_strategy.batch_size
                     )
                     batches = [question_batches for _ in range(len(chunks))]
                     if config.show_batches:
@@ -168,6 +227,33 @@ class GeminiBatcher:
         chunking_strategy : BaseStrategy,
         batching_strategy : BaseStrategy
     ) -> Response:
+        """
+        Generates answers to a set of questions from a text input using the provided chunking and batching strategies.
+        This function handles calling the relevant chunking and batching functions to generate the required information.
+        It then handles queries the Gemini API and combining the answers to produce the response.
+
+        Args:
+            config (GeminiConfig): The configuration settings for the query (such as model name, system prompt, caching options, etc).
+            content (BaseTextInput): The text input to be chunked.
+            questions (list[str]): The list of questions to be answered from the content.
+            chunking_strategy (BaseStrategy): The chunking strategy to be used to split the text into chunks.
+                Supported strategies:
+                    - `TextSlidingWindowChunking`
+                    - `TextSemanticChunking`
+                    - `TextTokenAwareChunkingAndBatching`
+            batching_strategy (BaseStrategy): The strategy used to group questions into batches.
+                Supported strategies:
+                    - `FixedBatching`
+                    - `SemanticBatching`
+
+        Returns:
+            Response: An object containing all of the relevant information about the queries reponse. Including its answers and token usage.
+                Optional information such as the chunks/batches generated can also be provided depending on the provided. `config` parameter.  
+
+        Raises:
+            NotImplemenentedError: If an unsupported chunking or batching strategy is provided.            
+        """
+
         response = Response()
         # Generating the chunks based on the inputted technique
         chunks = []
@@ -247,6 +333,20 @@ class GeminiBatcher:
         question_batches : DynamicBatch,
         previous_context : str = ""
     ) -> InternalResponse:
+        """
+        Processes a single chunk of media and its batched questions to query the Gemini model and retrieve answers.
+        This function uploads the relevant chunk to the model and then queries it with all the questions in the batch.
+
+        Args:
+            config (GeminiConfig): The configuration settings for the query (such as model name, system prompt, caching options, etc).
+            chunk_filepath (str): The filepath to the chunk of media to be uploaded to the Gemini model.
+            question_batches (DynamicBatch): The object managing the queue of questions to be asked to the chunk.
+            previous_context (str, optional): Additional context from previous responses which are prepended to the query.
+                This defaults to "" (i.e.) no previous context.
+        
+        Returns:
+            InternalResponse: Contains the questions and answers provided by the model in addition to information about token usage.     
+        """
         answers = {}
         total_input_tokens = 0
         total_output_tokens = 0
@@ -296,6 +396,19 @@ class GeminiBatcher:
         question_batches : DynamicBatch,
         previous_context : str = ""
     ) -> InternalResponse:
+        """
+        Processes a single chunk of text and its batched questions to query the Gemini model and retrieve answers.
+
+        Args:
+            config (GeminiConfig): The configuration settings for the query (such as model name, system prompt, etc).
+            chunk (str): The text content chunk to be processed.
+            question_batches (DynamicBatch): The object managing the queue of questions to be asked to the chunk.
+            previous_context (str, optional): Additional context from previous responses which are prepended to the query.
+                This defaults to "" (i.e.) no previous context.
+        
+        Returns:
+            InternalResponse: Contains the questions and answers provided by the model in addition to information about token usage.        
+        """
         answers = {}
         total_input_tokens = 0
         total_output_tokens = 0
@@ -330,7 +443,19 @@ class GeminiBatcher:
         content : BaseTextInput,
         questions : list[str],
     ) -> InternalResponse:
-        # A version of generate_content_fixed() that automatically chunks depending on the token limits of the model being used.
+        """
+        This function repeated resizes the chunks and batches it queries the Gemini API with to ensure token usage is maximised whilst
+        also maintaining the token limits. This is done in a binary-search type pattern, where if the input token limit is exceeded the
+        chunk size will be halved, and if the output token limit is exceeded, the batch size will be halved.
+
+        Args:
+            config (GeminiConfig): The configuration settings for the query (such as model name, system prompt, etc).
+            content (BaseTextInput): The text content to process.
+            questions (list[str]): The list of questions to be answered by the content.
+        
+            Returns:
+                Response: Contains the answers provided by the model, in addition to information about token usage.
+        """
         
         input_token_limit, _ = self.gemini_api.get_model_token_limits(config.model)
 
@@ -355,13 +480,12 @@ class GeminiBatcher:
             )
 
             # Checking if the content is too large for the input token limit, if so splitting the content in half
-            # TODO: Add ability to use sliding window
             if input_tokens_used > input_token_limit:
                 chunked_content = [curr_content[0 : len(curr_content)//2 + 1], curr_content[len(curr_content)//2 + 1 : len(curr_content)]]
 
                 queue.append((chunked_content[0], curr_batch_size))
                 queue.append((chunked_content[1], curr_batch_size))
-                DynamicBatch.add_questions(curr_batch)
+                question_batcher.add_questions(curr_batch)
 
             else:
                 try:
@@ -375,12 +499,8 @@ class GeminiBatcher:
                     # This will reduce the token size of the output.
                     queue.append((curr_content, curr_batch_size // 2 + 1))
                     queue.append((curr_content, curr_batch_size // 2 + 1))
-                    DynamicBatch.add_questions(curr_batch)
+                    question_batcher.add_questions(curr_batch)
                     continue
-                except exceptions.MaxInputTokensExceeded as e:
-                    # This exception should never occur as we already check that the input token limit is not exceeded.
-                    # TODO: Implement
-                    pass
                     
                 for i in range(len(response.content)):
                     if curr_batch[i] not in answers.keys() and response.content[i] !=  'N/A':
@@ -401,6 +521,16 @@ class GeminiBatcher:
         config : GeminiConfig,
         current_response : Response
     ) -> InternalResponse:
+        """
+        Generates a summary of the previously answered questions to provide additional context for subsequent queries.
+
+        Args:
+            config (GeminiConfig): Config object containing the config settings for the gemini model.
+            current_response (Response): The reponse object containing the previously answered questions.
+        
+        Returns:
+            InternalResponse: A summarisation of the previously answered questions and the tokens used to generate it.
+        """
         if len(current_response.content.keys) == 0:
             # No previous answers to summarise
             return ""

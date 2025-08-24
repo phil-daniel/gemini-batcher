@@ -54,6 +54,7 @@ class MediaChunkAndBatch():
         media_input : VideoFileInput,
         output_folder_path : str,
         gemini_client : GeminiApi,
+        gemini_model : str,
         min_sentences_per_chunk : int,
         max_sentences_per_chunk : int,
         transformer_model : str = 'all-MiniLM-L6-v2'
@@ -67,6 +68,7 @@ class MediaChunkAndBatch():
             media_input (VideoFileInput): The video file input to be chunked.
             output_folder_path (str): The path to the folder where the video chunks should be saved. It can be useful to use `tempfiles` for this.
             gemini_client (GeminiApi): The client instance used to make calls to the Gemini API to generate transcripts.
+            gemini_model (str): The Gemini model to use for transcription.
             min_sentences_per_chunk (int): The minimum number of sentences per chunk.
             max_sentences_per_chunk (int): The maximum number of sentences per chunk.
             transformer_model (str, optional): The SentenceTransformer model used to create sentence embeddings.
@@ -78,8 +80,14 @@ class MediaChunkAndBatch():
                 - A llist of the corresponding text chunks from the transcript.
         """
 
-        transcript_duration = MediaChunkAndBatch.get_video_duration(media_input.filepath)
-        timestamps, sentences = MediaChunkAndBatch.generate_transcript(media_input.filepath, gemini_client)
+        transcript_duration = MediaChunkAndBatch.get_video_duration(
+            path=media_input.filepath
+        )
+        timestamps, sentences = MediaChunkAndBatch.generate_transcript(
+            filepath=media_input.filepath,
+            gemini_client=gemini_client,
+            model=gemini_model
+        )
 
         chunks = TextChunkAndBatch.chunk_semantically(
             text_input=BaseTextInput(" ".join(sentences)), 
@@ -178,7 +186,8 @@ class MediaChunkAndBatch():
     
     def generate_transcript(
         filepath : str,
-        gemini_client : GeminiApi
+        gemini_client : GeminiApi,
+        model : str
     ) -> tuple[list[float], list[str]]:
         """
         Generates a transcript for a video or audio file using the Gemini API.
@@ -186,6 +195,7 @@ class MediaChunkAndBatch():
         Args:
             filepath(str): Path to the input media file.
             gemini_client (GeminiApi): The Gemini client to be used for transcription.
+            model (str): The Gemini model to use.
         
         Returns:
             tuple[list[float], list[str]]:
@@ -211,6 +221,7 @@ class MediaChunkAndBatch():
             )
 
             response = gemini_client.generate_content(
+                model=model,
                 prompt=prompt,
                 files=[audio_filepath],
                 system_prompt="",

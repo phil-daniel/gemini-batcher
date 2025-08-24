@@ -28,13 +28,31 @@ class InternalResponse:
     output_tokens : int
 
 class GeminiApi:
+    """
+    A wrapper over the Gemini Python SDK, which provides simplified functionality and additional error handling.
+
+    Attributes:
+        client (genai.Client): The gemini client to be used to query the Gemini API.
+        cache (defaultdict): A dictionary holding all of the currently cached files.
+        files (defaultdict): A dictionary holding all of the currently uploaded files.
+    """
+    client : genai.Client
+    cache : defaultdict
+    files : defaultdict
 
     def __init__(
         self,
         api_key : str,
         **kwargs
     ) -> None:
-        # TODO: Error handling - Api key not correct
+        """
+        Initialises the Gemini API client wrapper. This involves creating a new instance of the `genai.Client` using the provided information.
+        It also involves creating dictionaries for storing the references to uploaded files and cached files.
+
+        Args:
+            api_key (str): The API used to authenticate requests to the Gemini API.
+            **kwargs: Additional keyword arguements passed directly to `genai.Client`, i.e. additional setup options.
+        """
         self.client = genai.Client(api_key=api_key, **kwargs)
 
         self.cache = defaultdict(lambda : None)
@@ -110,7 +128,20 @@ class GeminiApi:
         cache_name : str = None,
         ttl : int = 300,
     ) -> None:
-        # TODO: Error handling if there is an issue with caching on the specified model.
+        """
+        Used to upload a provided file to the Gemini API cache. This also involves uploading the file
+        to the Gemini API if it has not yet been uploaded.
+
+        Once uploaded to the cache it allows for references to the file to be made in queries without reuploading it.
+
+        Args:
+            model (str): The Gemini model to use.
+            filepath (str): The path to the local file to cache.
+            cache_name (str, optional): A custom name for the cache entry.
+                Defaults to the filepath if none is provided.
+            ttl (int, optional): Time-to-live for the cache entry in seconds.
+                Defaults to 300 seconds.
+        """
 
         # cache_name defaults to the filepath if it has not explicitly been defined
         if cache_name == None:
@@ -139,6 +170,15 @@ class GeminiApi:
         self,
         filepath : str,
     ) -> None:
+        """
+        Uploads a file to the Gemini API for use in later queries.
+
+        Args:
+            filepath (str): The path to the local file to be uploaded.
+        
+        Raises:
+            FileNotFoundError: If the specified file does not exist.
+        """
         path = Path(filepath)
         if not path.exists():
             logging.error(f"File {filepath} not found.")
@@ -156,6 +196,18 @@ class GeminiApi:
         self,
         **kwargs 
     ) -> types.GenerateContentConfig:
+        """
+        Creates a custom content generation configuarion for Gemini API requests.
+
+        This method wraps the `type.GenerateContentConfig` object to allow uses to build flexible and
+        reusable request configurations (specifying stuff such as output schema, MIME types, etc).
+        
+        Args:
+            **kwargs: The keyword arguements passed directly to `types.GenerateContentConfig`
+        
+        Returns:
+            types.GenerateContentConfig: A configuration object for requests with the Gemini model.
+        """
         config = types.GenerateContentConfig(
             **kwargs
         )
@@ -166,7 +218,27 @@ class GeminiApi:
         self,
         model,
         **kwargs
-    ):
+    ) -> types.GenerateContentResponse:
+        """
+        Makes an API request to the Gemini model and handles errors gracefully.
+        
+        This method acts as a wrapper around the `generate_content()` function provided in the `google.genai` library.
+        It provides additional error handling for rate limiting and token limit failures.
+
+        Args:
+            model (str): The name of the Gemini model to use.
+            **kwargs: The parameters to pass directly to the API call.
+
+        Returns:
+            types.GenerateContentResponse: The raw Gemini API response.
+
+        Raises:
+            exceptions.MaxOutputTokensExceeded: If the model stopped because it exceeded the maximum output token limit.
+            exceptions.GeminiFinishError: If token generation ended unnatural for a reason other than max tokens (such as safety filters or blocked output).
+            exceptions.RateLimitExceeded: If the request was rate-limited (HTTP 429 error)
+            exceptions.GeminiAPIError: For generic Gemini API errors caused when using `generate_content`.
+            Exception: For any unidentified or unexpected errors. This is reraised.
+        """
         try:
             response = self.client.models.generate_content(model=model, **kwargs)
 
@@ -217,6 +289,36 @@ class GeminiApi:
         max_retries : int = 5,
         content_config : types.GenerateContentConfig = None
     ) -> InternalResponse:
+        """
+        A high-level wrapper around the `make_api_call()` function that prepares the prompt, attaches additional files,
+        applies caching and provides built in retries in case of transient errors. It also returns a simplfiied structured response.
+        
+        Args:
+            model (str): The Gemini model to use for the query.
+            prompt (str): The text prompt to provide to the model.
+            files (list[str], optional): The filepaths of files to include in the query. These files will be uploaded to the Gemini API
+                if they have not yet been. This defaults to [] (i.e. no files to upload).
+            cache_name (str, optional): The name of the cache which can be used to reuse pre-uploaded files. This cache must already have been created.
+                Defaults to None (i.e. no cached items).
+            system_prompt (str, optional): An optional system prompt to help control the model's behaviour.
+                This defaults to None. 
+            max_retries (int, optional): The number of retry attempt for faillures due to rate limits or transient errors.
+                This defaults to 5.
+            content_config (types.GenerateContentConfig, optional): A custom content configuration object. If none is provided, a default config
+                is created with the following:
+                    - JSON response format
+                    - `list[str]` schema
+            
+            Returns:
+                InternalResponse: A structured response containing simplified information about the API response. This includes the API's response and 
+                    its token usage.
+            
+            Raises:
+                exceptions.MaxOutputTokensExceeded: If then output exceeded the model's token limit.
+                exceptions.MaxInputTokensExceeded: If the input exceeded the model's token limit.
+                exceptions.RateLimitExceeded: If the API call failed due to the API key's rate limits.
+                Exception: Any unknown error during retries.
+        """
 
         if len(files) != 0:
             prompt = [prompt]
@@ -248,7 +350,6 @@ class GeminiApi:
                     contents = prompt
                 )
 
-                # TODO: Information about token usage, this can be used to compare performance between different designs
                 input_tokens = response.usage_metadata.prompt_token_count
                 output_tokens = response.usage_metadata.candidates_token_count
 
@@ -264,16 +365,22 @@ class GeminiApi:
                 # Reraising to be handled by function caller.
                 raise e
             except exceptions.RateLimitExceeded as e:
-                logging.info(f'Rate limit exceeded, waiting {e.retry_delay} seconds before retrying API call')
-                logging.debug(f'Exception: {e}')
-                time.sleep(e.retry_delay)
+                if i != max_retries:
+                    logging.warning(f'Rate limit exceeded, waiting {e.retry_delay} seconds before retrying API call')
+                    logging.debug(f'Exception: {e}')
+                    time.sleep(e.retry_delay)
+                else:
+                    logging.warning("Rate limit still exceeeded after retries.")
+                    raise e
             except Exception as e:
-                logging.info(f'Unknown expection occured: {e}')
-                logging.info("Retrying API call in 20 seconds.")
-                time.sleep(20)
-                continue
+                logging.warning(f'Unknown expection occured: {e}')
+                if i != max_retries:
+                    logging.info("Retrying API call in 20 seconds.")
+                    time.sleep(20)
+                    continue
+                else:
+                    raise e
         
-        # TODO: Handle failure better
         return InternalResponse(
             content = [],
             input_tokens = 0,

@@ -6,6 +6,7 @@ class DynamicBatch:
     Attributes:
         curr_chunk_question_queue (list[str]): The queue of questions to ask the current chunk.
         next_chunk_question_queue (list[str]): The queue of questions to ask the next chunk (already answered questions are removed).
+        batch_size (int): The maximum number of questions to return when batching.
     """
 
     curr_chunk_question_queue : list[str]
@@ -18,10 +19,11 @@ class DynamicBatch:
         batch_size : int
     ) -> None:
         """
-        Initialises the DynamicBatch object with the initial set of questions.
+        Initialises the DynamicBatch object with the initial set of questions and batch size.
 
         Args:
             questions (list[str]): The complete list of questions to be asked.
+            batch_size (int): The maximum number of questions to return when batching.
         """
         self.curr_chunk_question_queue = questions.copy()
         self.next_chunk_question_queue = questions.copy()
@@ -33,9 +35,6 @@ class DynamicBatch:
         """
         Retrieves the next batch of questions to ask.
         If there are no more questions to ask the current chunk, an empty list is returned.
-
-        Args:
-            batch_size (int): The maximum number of questions to return.
         
         Returns:
             list[str]: A list of (up to `batch_size`) questions from the current question queue.
