@@ -2,7 +2,6 @@ from dataclasses import dataclass
 
 from .gemini_functions.gemini_api import InternalResponse
 
-@dataclass
 class Response:
     """
     Represents the response to a call to the Gemini-Batcher library.
@@ -20,6 +19,20 @@ class Response:
     output_tokens : int = 0
     chunks : list[str] = None
     batches : list[str] = None
+
+    def __init__(
+        self,
+        content : dict,
+        input_tokens : int,
+        output_tokens : int,
+        chunks : list[str] = None,
+        batches : list[str] = None
+    ):
+        self.content = content
+        self.input_tokens = input_tokens
+        self.output_tokens = output_tokens
+        self.chunks = chunks
+        self.batches = batches
 
     def add_internal_response(
         self,

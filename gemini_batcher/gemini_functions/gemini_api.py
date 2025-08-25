@@ -33,10 +33,12 @@ class GeminiApi:
 
     Attributes:
         client (genai.Client): The gemini client to be used to query the Gemini API.
-        cache (dict): A dictionary holding all of the currently cached files.
-        files (dict): A dictionary holding all of the currently uploaded files.
+        cache (defaultdict): A dictionary holding all of the currently cached files.
+        files (defaultdict): A dictionary holding all of the currently uploaded files.
     """
     client : genai.Client
+    cache : defaultdict
+    files : defaultdict
 
     def __init__(
         self,
