@@ -37,8 +37,6 @@ class GeminiApi:
         files (dict): A dictionary holding all of the currently uploaded files.
     """
     client : genai.Client
-    cache : dict
-    files : dict
 
     def __init__(
         self,
