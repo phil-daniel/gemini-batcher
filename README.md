@@ -38,4 +38,4 @@ pip install -e .
 
 ## Additional Code Samples
 
-Additional code samples demonstrating the techniques covered, along with examples of how to use library can be found in the `./examples` subdirectory ([here](https://github.com/phil-daniel/gemini-batcher/tree/main/examples). Each notebook also includes a link to a corresponding Google Colab version for easy, online exploration.
+Additional code samples demonstrating the techniques covered, along with examples of how to use library can be found in the `./examples` subdirectory ([here](https://github.com/phil-daniel/gemini-batcher/tree/main/examples)). Each notebook also includes a link to a corresponding Google Colab version for easy, online exploration.
