@@ -10,7 +10,7 @@ In this section we will cover some of the many errors that occur during calls to
 
 ## API Errors
 
-These errors are typically triggered by bad requests, quota limits or server errors. In this documentation, we will cover some of the most frequently found errors, however more information about these errors can be found in the [Gemini error code documentation](https://ai.google.dev/gemini-api/docs/troubleshooting#error-codes). 
+These errors are typically triggered by bad requests, quota limits or server errors. In this documentation, we will cover one of the most common of the errors, however more information about these errors can be found in the [Gemini error code documentation](https://ai.google.dev/gemini-api/docs/troubleshooting#error-codes). 
 
 ### HTTP Code 429, Status RESOURCE_EXHAUSTED
 When using a free tier Gemini API it is very likely that you will face this error which occurs when too many requests are made in a short period of time. It is also possible that you may face this error with paid tiers, however this is unlikely as the limits are vastly higher. The exact limits can be found [here](https://ai.google.dev/gemini-api/docs/rate-limits#current-rate-limits).
@@ -106,10 +106,6 @@ except errors.APIError as e:
         time.sleep(time_to_wait)
 ```
 
-### Other common API Errors
-
-TODO: Add common errors here
-
 ## Generation Errors
 
 Generation errors occur during when the model is generating its response, examples of this would be when satefy checks trigger or the output token limit is exceeded. In some of these cases, a response to the API call is given, however the response may not be readable or correct. These errors can be identified by checking the `FinishReason` of a response, which tells us why the model stopped generating an output. If this reason is not `STOP` then the model did not finish naturally. More detail about these reasons can be found in the [FinishReason section of the Gemini documentation](https://ai.google.dev/api/generate-content#FinishReason).
@@ -140,4 +136,6 @@ if response.candidates[0].finish_reason != types.FinishReason.STOP:
 ```
 
 ### Other Finish Reasons
+
+There are various other FinishReasons which occur when model generation has occured unnaturally which can be checked for. More information about these errors can be found in the [FinishReason section of the Gemini documentation](https://ai.google.dev/api/generate-content#FinishReason).
 

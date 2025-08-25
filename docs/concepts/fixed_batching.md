@@ -18,79 +18,67 @@ There are, however, some considerations which need to be made during implementat
 
 ## Examples
 
-The following examples demonstrate the efficiency gains achieved when using batching and can be tested yourself by following the setup information or accessing the Google Colab [Link to Google Colab when created].
+The following examples demonstrate the efficiency gains achieved when using batching and can be tested yourself by following the [setup information](https://phil-daniel.github.io/gemini-batcher/concepts/setup.html) or accessing the Google Colab:
+
+<a target="_blank" href="https://colab.research.google.com/github/phil-daniel/gemini-batcher/blob/main/examples/batching.ipynb"><img src="https://colab.research.google.com/assets/colab-badge.svg" height=30/></a>
 
 ### 1. No Batching
 
-In the first example, no batching is used and questions are instead answered sequentially using on the content, with a custom system prompt used to ensure response accuracy.
+In the first example, no batching is used and questions are instead answered sequentially using on the content, with a custom system prompt used to ensure response accuracy. The response is returned in JSON format for easier comparison to the batched example.
 
 ```python
-input_tokens = 0
-output_tokens = 0
+system_prompt = "Answer the questions using *only* the content provided, with each answer being a different string in the JSON response."
 
-system_prompt = """
-    Answer the question using the content provided.
-    Provide direct, factual answers, using only information explicitly present in the content. Do not infer, speculate or bring in outside knowledge.
-"""
+total_input_tokens_no_batching = 0
+total_output_tokens_no_batching = 0
 
-for question in questions:
+for question in questions[:5]:
     response = client.models.generate_content(
-        model="gemini-2.5-flash",
+        model=MODEL_ID,
         config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema=list[str],
             system_instruction=system_prompt,
-            thinking_config=types.ThinkingConfig(thinking_budget=0)
         ),
         contents=[f'Content:\n{content}', f'\nQuestion:\n{question}']
     )
-    input_tokens += response.usage_metadata.prompt_token_count
-    output_tokens += response.usage_metadata.candidates_token_count
+    total_input_tokens_no_batching += response.usage_metadata.prompt_token_count
+    total_output_tokens_no_batching += response.usage_metadata.candidates_token_count
 
-print (f'Input tokens used: {input_tokens}')
-print (f'Output tokens used: {output_tokens}')
+print (f'Total input tokens used with no batching: {total_input_tokens_no_batching}')
+print (f'Total output tokens used with no batching: {total_output_tokens_no_batching}')
 ```
 
 ### 2. Fixed Batching
 
-In this second example, simple batching logic is used to group the questions into batches of 8, with each batch of questions being passed to the API one at a time. A slightly modified system prompt is also used, which requires the API to response in JSON format, which allows for every individual answer to be retrieved easily.
+In this second example, rather than asking each question one at a time, simple batching logic is used to group the questions into a batch of 5, which is passed to the API all at the same time. This results in a significant reduction in the number of input tokens used as the model is only provided with the large content once rather than five times.
+
+The response is returned in JSON format to allow for easier separation of each question's answer.
 
 ```python
-# Batching the questions together, where each batch is of size 'questions_per_batch'
-questions_per_batch = 8
-batched_questions = []
-for i in range(len(questions), questions_per_batch):
-    batch = "\n".join(questions[i * questions_per_batch : min((i+1) * questions_per_batch, len(questions))])
-    batched_questions.append(batch)
+system_prompt = "Answer the questions using *only* the content provided, with each answer being a different string in the JSON response."
 
-input_tokens = 0
-output_tokens = 0
+batched_questions = ("\n").join(questions[:5])
 
-system_prompt = """
-    Answer the questions using the content provided, with each answer being a different string in the JSON response.
-    Provide direct, factual answers, using only information explicitly present in the content. Do not infer, speculate or bring in outside knowledge.
-"""
+batched_response = client.models.generate_content(
+    model=MODEL_ID,
+    config=types.GenerateContentConfig(
+        response_mime_type="application/json",
+        response_schema=list[str],
+        system_instruction=system_prompt,
+        thinking_config=types.ThinkingConfig(thinking_budget=0,)
+    ),
+    contents=[f'Content:\n{content}', f'\nQuestions:\n{batched_questions}']
+)
 
-for batch in batched_questions:
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        config=types.GenerateContentConfig(
-            # Setting 'response_mime_type' and 'response_schema' to ensure response is a parsable JSON format.
-            response_mime_type="application/json",
-            response_schema=list[str],
-            system_instruction=system_prompt,
-            thinking_config=types.ThinkingConfig(thinking_budget=0)
-        ),
-        contents=[f'Content:\n{content}', f'\nQuestions:\n{batch}']
-    )
+answers = batched_response.text
+batched_answers = json.loads(answers.strip())
 
-    answers = response.text
-    batched_answers = json.loads(answers.strip())
-    # For question X in a batch (i.e. batch[X]), the answer can now be accessed from batched_answers[X]
+total_input_tokens_with_batching = batched_response.usage_metadata.prompt_token_count
+total_output_tokens_with_batching = batched_response.usage_metadata.candidates_token_count
 
-    input_tokens += response.usage_metadata.prompt_token_count
-    output_tokens += response.usage_metadata.candidates_token_count
-
-print (f'Input tokens used: {input_tokens}')
-print (f'Output tokens used: {output_tokens}')
+print (f'Total input tokens used with batching: {total_input_tokens_with_batching}')
+print (f'Total output tokens used with batching: {total_output_tokens_with_batching}')
 ```
 
 In the above example, only simple batching logic is used, however there are also more advanced techniques which also be implemented to provide increased efficiency. Many of these techniques also have to be combined with chunking, a technique for breaking down content into small parts.

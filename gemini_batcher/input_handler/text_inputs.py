@@ -1,13 +1,21 @@
 import logging
 import httpx
 from pathlib import Path
+from abc import ABC
 
-class BaseTextInput():
+class BaseInput(ABC):
+    """
+    Abstract base class for all input types.
+    This provides a common interfact which allows input types to be used interchangably.
+    """
+    pass
+
+class BaseTextInput(BaseInput):
     """
     A simple object holding the text input used throughout the chunking process.
 
     Attributes:
-        content (str): The text content.
+        content (str): The text contents.
     """
 
     content : str

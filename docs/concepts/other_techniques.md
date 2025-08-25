@@ -8,6 +8,10 @@ parent: Concepts
 
 In previous sections, basic techniques for batching and chunking (such as fixed batching) were demonstrated. These methods are incredibly easy to implement however there are alternative methods that may perform better. In this section we will discuss some of these methods.
 
+Interactive examples demonstrating the techniques mentioned in this page can be found in following Google Colab:
+
+<a target="_blank" href="https://colab.research.google.com/github/phil-daniel/gemini-batcher/blob/main/examples/other_techniques.ipynb"><img src="https://colab.research.google.com/assets/colab-badge.svg" height=30/></a>
+
 ## Token Awareness
 
 As previously mentioned, one of the primary limitations of large language models is their token limit, which restricts the number of input and output tokens that can be processed or generated in a single API call. To improve the efficiency of API calls, it is important to make the best possible use of the available context window. One way of doing this is by dynamically adjusting the size of the input and expected output depending on the task and the model being used. This can be done using the chunking and batching techniques discussed earlier.
@@ -121,16 +125,16 @@ for i in range(len(sentence_embeddings) - 1):
     similarity = cosine_similarity(s1, s2)[0][0]
     similarities.append(similarity)
 
-# Calculating a threashold value for cosine similarity.
+# Calculating a threshold value for cosine similarity.
 mean = np.mean(similarities)
 std_dev = np.std(similarities)
-similarity_threashold = mean - (std_dev * threashold_factor)
+similarity_threshold = mean - (std_dev * threshold_factor)
 
 boundaries = [0]
 current_chunk_start_pos = 0
 for i in range(len(similarities)):
     # Checking if there is a natural boundary.
-    if similarities[i] < similarity_threashold and (i + 1) - current_chunk_start_pos >= min_sentences_per_chunk:
+    if similarities[i] < similarity_threshold and (i + 1) - current_chunk_start_pos >= min_sentences_per_chunk:
         boundaries.append(i+1)
         current_chunk_start_pos = i + 1
     elif (i+1) - current_chunk_start_pos >= max_sentences_per_chunk:
@@ -155,12 +159,12 @@ We can continue with the semantic approach by also batching questions based on t
 
 ```python
 # Creating a batch for each chunk. Each batch only contains the questions for its respective chunks.
-question_batches = [[] for _ in range(len(chunked_content))]
+question_batches = [[] for _ in range(len(content_chunks))]
 
 # Creating embeddings for each question.
 question_embeddings = model.encode(questions)
 # Creating an embeddings for each chunk - not each sentence in a chunk.
-chunk_embeddings = model.encode(chunked_content)
+chunk_embeddings = model.encode(content_chunks)
 
 for i in range(len(question_embeddings)):
     # Calculating the similarity to each chunk.
